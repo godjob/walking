@@ -30,7 +30,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useRef } = React;
 
     function App() {
       const [activeTab, setActiveTab] = useState('record');
@@ -38,10 +38,12 @@
       const [currentWalk, setCurrentWalk] = useState(null);
       const [walks, setWalks] = useState([]);
       const [walkers, setWalkers] = useState([]);
-      const [selectedWalker, setSelectedWalker] = useState('');
+      const [selectedWalkers, setSelectedWalkers] = useState([]);
       const [loading, setLoading] = useState(true);
       const [newWalkerName, setNewWalkerName] = useState('');
       const [showAddWalker, setShowAddWalker] = useState(false);
+      const stationaryTimeRef = useRef(0);
+      const lastPositionRef = useRef(null);
 
       // 散歩者リストを読み込み
       useEffect(() => {
@@ -73,6 +75,20 @@
         return () => unsubscribe();
       }, []);
 
+      const toggleWalker = (walkerName) => {
+        setSelectedWalkers(prev => {
+          if (prev.includes(walkerName)) {
+            return prev.filter(w => w !== walkerName);
+          } else {
+            if (prev.length >= 10) {
+              alert('散歩者は最大10人までです');
+              return prev;
+            }
+            return [...prev, walkerName];
+          }
+        });
+      };
+
       const addWalker = async () => {
         if (!newWalkerName.trim()) return;
         
@@ -91,8 +107,32 @@
         }
       };
 
+      const calculateDistance = (lat1, lng1, lat2, lng2) => {
+        const R = 6371000; // 地球の半径(m)
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                 Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                 Math.sin(dLng/2) * Math.sin(dLng/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+      };
+
+      const calculateTotalDistance = (positions) => {
+        if (positions.length < 2) return 0;
+        
+        let total = 0;
+        for (let i = 1; i < positions.length; i++) {
+          total += calculateDistance(
+            positions[i-1].lat, positions[i-1].lng,
+            positions[i].lat, positions[i].lng
+          );
+        }
+        return total;
+      };
+
       const startWalk = () => {
-        if (!selectedWalker) {
+        if (selectedWalkers.length === 0) {
           alert('散歩者を選択してください');
           return;
         }
@@ -103,11 +143,12 @@
         }
 
         const walk = {
-          walker: selectedWalker,
+          walkers: selectedWalkers,
           startTime: new Date(),
           positions: [],
           pee: false,
           poo: false,
+          water: false,
           memo: ''
         };
 
@@ -118,6 +159,12 @@
               lng: position.coords.longitude,
               time: new Date()
             });
+            lastPositionRef.current = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+              time: Date.now()
+            };
+            stationaryTimeRef.current = 0;
             setCurrentWalk(walk);
             setIsWalking(true);
           },
@@ -133,13 +180,48 @@
         const interval = setInterval(() => {
           navigator.geolocation.getCurrentPosition(
             (position) => {
+              const newPos = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                time: new Date()
+              };
+
+              // 前回の位置との距離を計算
+              if (lastPositionRef.current) {
+                const distance = calculateDistance(
+                  lastPositionRef.current.lat,
+                  lastPositionRef.current.lng,
+                  newPos.lat,
+                  newPos.lng
+                );
+
+                // 10m以内なら静止時間を加算
+                if (distance <= 10) {
+                  stationaryTimeRef.current += 10; // 10秒間隔で計測
+                  
+                  // 5分(300秒)以上静止していたら自動終了
+                  if (stationaryTimeRef.current >= 300) {
+                    if (confirm('5分間その場にとどまっています。散歩を終了しますか?')) {
+                      endWalk();
+                    } else {
+                      stationaryTimeRef.current = 0;
+                    }
+                  }
+                } else {
+                  // 移動したら静止時間をリセット
+                  stationaryTimeRef.current = 0;
+                }
+
+                lastPositionRef.current = {
+                  lat: newPos.lat,
+                  lng: newPos.lng,
+                  time: Date.now()
+                };
+              }
+
               setCurrentWalk(prev => ({
                 ...prev,
-                positions: [...prev.positions, {
-                  lat: position.coords.latitude,
-                  lng: position.coords.longitude,
-                  time: new Date()
-                }]
+                positions: [...prev.positions, newPos]
               }));
             }
           );
@@ -148,47 +230,31 @@
         return () => clearInterval(interval);
       }, [isWalking, currentWalk]);
 
-      const calculateDistance = (positions) => {
-        if (positions.length < 2) return 0;
-        
-        let total = 0;
-        for (let i = 1; i < positions.length; i++) {
-          const lat1 = positions[i-1].lat * Math.PI / 180;
-          const lat2 = positions[i].lat * Math.PI / 180;
-          const dLat = (positions[i].lat - positions[i-1].lat) * Math.PI / 180;
-          const dLng = (positions[i].lng - positions[i-1].lng) * Math.PI / 180;
-          
-          const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                   Math.cos(lat1) * Math.cos(lat2) *
-                   Math.sin(dLng/2) * Math.sin(dLng/2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-          total += 6371000 * c;
-        }
-        return total;
-      };
-
       const endWalk = async () => {
         if (!currentWalk) return;
         
         const endTime = new Date();
         const duration = Math.floor((endTime - currentWalk.startTime) / 60000);
-        const distance = calculateDistance(currentWalk.positions);
+        const distance = calculateTotalDistance(currentWalk.positions);
         
         await db.collection('walks').add({
-          walker: currentWalk.walker,
+          walkers: currentWalk.walkers,
           startTime: firebase.firestore.Timestamp.fromDate(currentWalk.startTime),
           endTime: firebase.firestore.Timestamp.fromDate(endTime),
           duration,
           distance,
           pee: currentWalk.pee,
           poo: currentWalk.poo,
+          water: currentWalk.water,
           memo: currentWalk.memo,
           positions: currentWalk.positions
         });
         
         setCurrentWalk(null);
         setIsWalking(false);
-        setSelectedWalker('');
+        setSelectedWalkers([]);
+        stationaryTimeRef.current = 0;
+        lastPositionRef.current = null;
       };
 
       const formatDate = (date) => {
@@ -225,14 +291,23 @@
         activeTab === 'record' && React.createElement('div', { className: 'p-4' },
           !isWalking ? React.createElement('div', { className: 'space-y-4' },
             React.createElement('div', null,
-              React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '散歩者'),
-              React.createElement('select', {
-                value: selectedWalker,
-                onChange: (e) => setSelectedWalker(e.target.value),
-                className: 'w-full p-2 border rounded'
-              },
-                React.createElement('option', { value: '' }, '選択してください'),
-                walkers.map(w => React.createElement('option', { key: w.id, value: w.name }, w.name))
+              React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '散歩者 (最大10人)'),
+              React.createElement('div', { className: 'space-y-2' },
+                walkers.map(w => React.createElement('label', { 
+                  key: w.id, 
+                  className: 'flex items-center p-2 border rounded cursor-pointer hover:bg-gray-50'
+                },
+                  React.createElement('input', {
+                    type: 'checkbox',
+                    checked: selectedWalkers.includes(w.name),
+                    onChange: () => toggleWalker(w.name),
+                    className: 'mr-2 w-5 h-5'
+                  }),
+                  React.createElement('span', null, w.name)
+                ))
+              ),
+              selectedWalkers.length > 0 && React.createElement('p', { className: 'text-sm text-gray-600 mt-2' },
+                '選択中: ' + selectedWalkers.join(', ')
               )
             ),
             React.createElement('button', {
@@ -241,21 +316,25 @@
             }, '散歩開始')
           ) : React.createElement('div', { className: 'space-y-4' },
             React.createElement('div', { className: 'bg-blue-50 p-4 rounded' },
-              React.createElement('p', { className: 'text-sm text-gray-600' }, '散歩者: ' + currentWalk?.walker),
+              React.createElement('p', { className: 'text-sm text-gray-600' }, '散歩者: ' + currentWalk?.walkers.join(', ')),
               React.createElement('p', { className: 'text-sm text-gray-600' }, '経過時間: ' + Math.floor((new Date() - currentWalk?.startTime) / 60000) + '分'),
-              React.createElement('p', { className: 'text-sm text-gray-600' }, '距離: ' + (calculateDistance(currentWalk?.positions || []) / 1000).toFixed(2) + 'km')
+              React.createElement('p', { className: 'text-sm text-gray-600' }, '距離: ' + (calculateTotalDistance(currentWalk?.positions || []) / 1000).toFixed(2) + 'km')
             ),
             React.createElement('div', null,
-              React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '排泄'),
-              React.createElement('div', { className: 'flex gap-2' },
+              React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '記録'),
+              React.createElement('div', { className: 'grid grid-cols-3 gap-2' },
                 React.createElement('button', {
                   onClick: () => setCurrentWalk({...currentWalk, pee: !currentWalk.pee}),
-                  className: `flex-1 py-3 rounded border-2 ${currentWalk?.pee ? 'bg-yellow-100 border-yellow-500' : 'border-gray-300'}`
+                  className: `py-3 rounded border-2 ${currentWalk?.pee ? 'bg-yellow-100 border-yellow-500' : 'border-gray-300'}`
                 }, '💧 おしっこ'),
                 React.createElement('button', {
                   onClick: () => setCurrentWalk({...currentWalk, poo: !currentWalk.poo}),
-                  className: `flex-1 py-3 rounded border-2 ${currentWalk?.poo ? 'bg-yellow-100 border-yellow-700' : 'border-gray-300'}`
-                }, '💩 うんち')
+                  className: `py-3 rounded border-2 ${currentWalk?.poo ? 'bg-yellow-100 border-yellow-700' : 'border-gray-300'}`
+                }, '💩 うんち'),
+                React.createElement('button', {
+                  onClick: () => setCurrentWalk({...currentWalk, water: !currentWalk.water}),
+                  className: `py-3 rounded border-2 ${currentWalk?.water ? 'bg-blue-100 border-blue-500' : 'border-gray-300'}`
+                }, '💧 水')
               )
             ),
             React.createElement('div', null,
@@ -281,7 +360,7 @@
             walks.map(walk => React.createElement('div', { key: walk.id, className: 'border rounded p-3 bg-white shadow-sm' },
               React.createElement('div', { className: 'flex justify-between items-start mb-2' },
                 React.createElement('div', null,
-                  React.createElement('p', { className: 'font-medium' }, walk.walker),
+                  React.createElement('p', { className: 'font-medium' }, Array.isArray(walk.walkers) ? walk.walkers.join(', ') : walk.walkers),
                   React.createElement('p', { className: 'text-sm text-gray-500' }, formatDate(walk.startTime))
                 ),
                 React.createElement('div', { className: 'text-right' },
@@ -290,8 +369,9 @@
                 )
               ),
               React.createElement('div', { className: 'flex gap-2 text-sm' },
-                walk.pee && React.createElement('span', null, '💧'),
-                walk.poo && React.createElement('span', null, '💩')
+                walk.pee && React.createElement('span', null, '💧おしっこ'),
+                walk.poo && React.createElement('span', null, '💩うんち'),
+                walk.water && React.createElement('span', null, '💧水')
               ),
               walk.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-2 border-t pt-2' }, walk.memo)
             ))
@@ -342,4 +422,3 @@
   </script>
 </body>
 </html>
-
