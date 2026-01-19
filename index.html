@@ -3,15 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>犬の散歩記録アプリ</title>
+  <title>福といっしょ</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+  
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body class="bg-gray-100">
   <div id="app"></div>
 
   <script>
+    // Firebase設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
+      authDomain: "walking-36c5a.firebaseapp.com",
+      projectId: "walking-36c5a",
+      storageBucket: "walking-36c5a.firebasestorage.app",
+      messagingSenderId: "457304106244",
+      appId: "1:457304106244:web:3bcb8df4d4a3b27a971c51"
+    };
+
+    // Firebase初期化
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     const { useState, useEffect } = React;
 
     function App() {
@@ -19,17 +37,59 @@
       const [isWalking, setIsWalking] = useState(false);
       const [currentWalk, setCurrentWalk] = useState(null);
       const [walks, setWalks] = useState([]);
-      const [walkers, setWalkers] = useState(['太郎', '花子', 'お母さん', 'お父さん']);
+      const [walkers, setWalkers] = useState([]);
       const [selectedWalker, setSelectedWalker] = useState('');
-      
+      const [loading, setLoading] = useState(true);
+      const [newWalkerName, setNewWalkerName] = useState('');
+      const [showAddWalker, setShowAddWalker] = useState(false);
+
+      // 散歩者リストを読み込み
       useEffect(() => {
-        const saved = localStorage.getItem('dogWalks');
-        if (saved) setWalks(JSON.parse(saved));
+        const unsubscribe = db.collection('walkers').onSnapshot((snapshot) => {
+          const walkerList = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setWalkers(walkerList.sort((a, b) => a.order - b.order));
+          setLoading(false);
+        });
+        return () => unsubscribe();
       }, []);
 
+      // 散歩履歴を読み込み
       useEffect(() => {
-        localStorage.setItem('dogWalks', JSON.stringify(walks));
-      }, [walks]);
+        const unsubscribe = db.collection('walks')
+          .orderBy('startTime', 'desc')
+          .limit(50)
+          .onSnapshot((snapshot) => {
+            const walkList = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+              startTime: doc.data().startTime?.toDate(),
+              endTime: doc.data().endTime?.toDate()
+            }));
+            setWalks(walkList);
+          });
+        return () => unsubscribe();
+      }, []);
+
+      const addWalker = async () => {
+        if (!newWalkerName.trim()) return;
+        
+        await db.collection('walkers').add({
+          name: newWalkerName.trim(),
+          order: walkers.length
+        });
+        
+        setNewWalkerName('');
+        setShowAddWalker(false);
+      };
+
+      const deleteWalker = async (walkerId) => {
+        if (confirm('この散歩者を削除しますか?')) {
+          await db.collection('walkers').doc(walkerId).delete();
+        }
+      };
 
       const startWalk = () => {
         if (!selectedWalker) {
@@ -43,7 +103,6 @@
         }
 
         const walk = {
-          id: Date.now(),
           walker: selectedWalker,
           startTime: new Date(),
           positions: [],
@@ -108,30 +167,41 @@
         return total;
       };
 
-      const endWalk = () => {
+      const endWalk = async () => {
         if (!currentWalk) return;
         
         const endTime = new Date();
         const duration = Math.floor((endTime - currentWalk.startTime) / 60000);
         const distance = calculateDistance(currentWalk.positions);
         
-        const completedWalk = {
-          ...currentWalk,
-          endTime,
+        await db.collection('walks').add({
+          walker: currentWalk.walker,
+          startTime: firebase.firestore.Timestamp.fromDate(currentWalk.startTime),
+          endTime: firebase.firestore.Timestamp.fromDate(endTime),
           duration,
-          distance
-        };
+          distance,
+          pee: currentWalk.pee,
+          poo: currentWalk.poo,
+          memo: currentWalk.memo,
+          positions: currentWalk.positions
+        });
         
-        setWalks([completedWalk, ...walks]);
         setCurrentWalk(null);
         setIsWalking(false);
         setSelectedWalker('');
       };
 
       const formatDate = (date) => {
+        if (!date) return '';
         const d = new Date(date);
         return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
       };
+
+      if (loading) {
+        return React.createElement('div', { className: 'flex items-center justify-center min-h-screen' },
+          React.createElement('div', { className: 'text-lg' }, '読み込み中...')
+        );
+      }
 
       return React.createElement('div', { className: 'max-w-md mx-auto bg-white min-h-screen' },
         React.createElement('div', { className: 'bg-blue-500 text-white p-4' },
@@ -145,8 +215,13 @@
           React.createElement('button', {
             onClick: () => setActiveTab('history'),
             className: `flex-1 py-3 ${activeTab === 'history' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
-          }, '履歴')
+          }, '履歴'),
+          React.createElement('button', {
+            onClick: () => setActiveTab('settings'),
+            className: `flex-1 py-3 ${activeTab === 'settings' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
+          }, '設定')
         ),
+        
         activeTab === 'record' && React.createElement('div', { className: 'p-4' },
           !isWalking ? React.createElement('div', { className: 'space-y-4' },
             React.createElement('div', null,
@@ -157,7 +232,7 @@
                 className: 'w-full p-2 border rounded'
               },
                 React.createElement('option', { value: '' }, '選択してください'),
-                walkers.map(w => React.createElement('option', { key: w, value: w }, w))
+                walkers.map(w => React.createElement('option', { key: w.id, value: w.name }, w.name))
               )
             ),
             React.createElement('button', {
@@ -199,6 +274,7 @@
             }, '散歩終了')
           )
         ),
+        
         activeTab === 'history' && React.createElement('div', { className: 'p-4' },
           walks.length === 0 ? React.createElement('p', { className: 'text-center text-gray-500 mt-8' }, 'まだ記録がありません') :
           React.createElement('div', { className: 'space-y-3' },
@@ -219,6 +295,44 @@
               ),
               walk.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-2 border-t pt-2' }, walk.memo)
             ))
+          )
+        ),
+        
+        activeTab === 'settings' && React.createElement('div', { className: 'p-4' },
+          React.createElement('h2', { className: 'text-lg font-bold mb-4' }, '散歩者の管理'),
+          React.createElement('div', { className: 'space-y-2 mb-4' },
+            walkers.map(w => React.createElement('div', { key: w.id, className: 'flex items-center justify-between p-2 border rounded' },
+              React.createElement('span', null, w.name),
+              React.createElement('button', {
+                onClick: () => deleteWalker(w.id),
+                className: 'text-red-500 text-sm'
+              }, '削除')
+            ))
+          ),
+          !showAddWalker ? React.createElement('button', {
+            onClick: () => setShowAddWalker(true),
+            className: 'w-full bg-blue-500 text-white py-2 rounded'
+          }, '+ 散歩者を追加') : React.createElement('div', { className: 'space-y-2' },
+            React.createElement('input', {
+              type: 'text',
+              value: newWalkerName,
+              onChange: (e) => setNewWalkerName(e.target.value),
+              placeholder: '名前を入力',
+              className: 'w-full p-2 border rounded'
+            }),
+            React.createElement('div', { className: 'flex gap-2' },
+              React.createElement('button', {
+                onClick: addWalker,
+                className: 'flex-1 bg-green-500 text-white py-2 rounded'
+              }, '追加'),
+              React.createElement('button', {
+                onClick: () => {
+                  setShowAddWalker(false);
+                  setNewWalkerName('');
+                },
+                className: 'flex-1 bg-gray-300 py-2 rounded'
+              }, 'キャンセル')
+            )
           )
         )
       );
