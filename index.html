@@ -627,7 +627,7 @@
             walks.map(walk => React.createElement('div', { key: walk.id, className: 'border rounded-lg p-3 bg-white shadow' },
               React.createElement('div', { className: 'flex justify-between items-start mb-2' },
                 React.createElement('div', null,
-                  React.createElement('p', { className: 'font-medium' }, '👥 ' + (Array.isArray(walk.walkers) ? walk.walkers.join(', ') : walk.walkers)),
+                  React.createElement('p', { className: 'font-medium' }, '👥 ' + (Array.isArray(walk.walkers) ? walk.walkers.join(', ') : (walk.walkers || walk.walker || 'undefined'))),
                   React.createElement('p', { className: 'text-sm text-gray-500' }, formatDate(walk.startTime))
                 ),
                 React.createElement('div', { className: 'text-right' },
