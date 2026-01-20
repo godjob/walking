@@ -7,16 +7,13 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
-  
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 </head>
 <body class="bg-gray-100">
   <div id="app"></div>
-
   <script>
-    // Firebase設定
     const firebaseConfig = {
       apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
       authDomain: "walking-36c5a.firebaseapp.com",
@@ -25,27 +22,187 @@
       messagingSenderId: "457304106244",
       appId: "1:457304106244:web:3bcb8df4d4a3b27a971c51"
     };
-
-    // Firebase初期化
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-
+    const storage = firebase.storage();
     const { useState, useEffect, useRef } = React;
+
+    const badges = [
+      { id: 'first', name: '初めての散歩', icon: '🎉', condition: (c) => c >= 1 },
+      { id: 'ten', name: '散歩10回', icon: '🌟', condition: (c) => c >= 10 },
+      { id: 'fifty', name: '散歩50回', icon: '⭐', condition: (c) => c >= 50 },
+      { id: 'hundred', name: '散歩100回', icon: '👑', condition: (c) => c >= 100 },
+      { id: 'distance10', name: '合計10km', icon: '🏃', condition: (c, d) => d >= 10000 },
+      { id: 'distance50', name: '合計50km', icon: '🚀', condition: (c, d) => d >= 50000 },
+      { id: 'distance100', name: '合計100km', icon: '🎖️', condition: (c, d) => d >= 100000 }
+    ];
+
+    function HealthForm({ type, walkers, onSave, onCancel }) {
+      const [formData, setFormData] = useState({
+        type: type,
+        date: new Date().toISOString().split('T')[0],
+        hospitalName: '',
+        reason: '',
+        groomedBy: 'walker',
+        walker: '',
+        shopName: '',
+        medicineType: '',
+        isVaccine: false,
+        memo: ''
+      });
+
+      const handleSubmit = () => {
+        if (type === 'hospital' && !formData.hospitalName) {
+          alert('病院名を入力してください');
+          return;
+        }
+        if (type === 'grooming' && formData.groomedBy === 'shop' && !formData.shopName) {
+          alert('店舗名を入力してください');
+          return;
+        }
+        if (type === 'medicine' && !formData.medicineType) {
+          alert('薬の種類を入力してください');
+          return;
+        }
+        onSave(formData);
+      };
+
+      return React.createElement('div', { className: 'space-y-4' },
+        React.createElement('h3', { className: 'font-bold text-lg' },
+          type === 'hospital' ? '🏥 病院記録' :
+          type === 'grooming' ? '✂️ 散髪記録' :
+          type === 'bath' ? '🛁 入浴記録' : '💊 薬記録'
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '日付'),
+          React.createElement('input', {
+            type: 'date',
+            value: formData.date,
+            onChange: (e) => setFormData({...formData, date: e.target.value}),
+            className: 'w-full p-2 border rounded'
+          })
+        ),
+        type === 'hospital' && React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '病院名'),
+          React.createElement('input', {
+            type: 'text',
+            value: formData.hospitalName,
+            onChange: (e) => setFormData({...formData, hospitalName: e.target.value}),
+            className: 'w-full p-2 border rounded',
+            placeholder: '例: ○○動物病院'
+          }),
+          React.createElement('label', { className: 'block text-sm font-medium mb-1 mt-2' }, '理由'),
+          React.createElement('input', {
+            type: 'text',
+            value: formData.reason,
+            onChange: (e) => setFormData({...formData, reason: e.target.value}),
+            className: 'w-full p-2 border rounded',
+            placeholder: '例: 定期検診'
+          })
+        ),
+        type === 'grooming' && React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '散髪者'),
+          React.createElement('div', { className: 'space-y-2' },
+            React.createElement('label', { className: 'flex items-center' },
+              React.createElement('input', {
+                type: 'radio',
+                name: 'groomedBy',
+                value: 'walker',
+                checked: formData.groomedBy === 'walker',
+                onChange: (e) => setFormData({...formData, groomedBy: e.target.value}),
+                className: 'mr-2'
+              }),
+              '散歩者が散髪'
+            ),
+            formData.groomedBy === 'walker' && React.createElement('select', {
+              value: formData.walker,
+              onChange: (e) => setFormData({...formData, walker: e.target.value}),
+              className: 'w-full p-2 border rounded ml-6'
+            },
+              React.createElement('option', { value: '' }, '選択してください'),
+              walkers.map(w => React.createElement('option', { key: w.id, value: w.name }, w.name))
+            ),
+            React.createElement('label', { className: 'flex items-center' },
+              React.createElement('input', {
+                type: 'radio',
+                name: 'groomedBy',
+                value: 'shop',
+                checked: formData.groomedBy === 'shop',
+                onChange: (e) => setFormData({...formData, groomedBy: e.target.value}),
+                className: 'mr-2'
+              }),
+              '店舗で散髪'
+            ),
+            formData.groomedBy === 'shop' && React.createElement('input', {
+              type: 'text',
+              value: formData.shopName,
+              onChange: (e) => setFormData({...formData, shopName: e.target.value}),
+              className: 'w-full p-2 border rounded ml-6',
+              placeholder: '店舗名を入力'
+            })
+          )
+        ),
+        type === 'medicine' && React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '薬の種類'),
+          React.createElement('input', {
+            type: 'text',
+            value: formData.medicineType,
+            onChange: (e) => setFormData({...formData, medicineType: e.target.value}),
+            className: 'w-full p-2 border rounded',
+            placeholder: '例: フィラリア予防薬'
+          }),
+          React.createElement('label', { className: 'flex items-center mt-2' },
+            React.createElement('input', {
+              type: 'checkbox',
+              checked: formData.isVaccine,
+              onChange: (e) => setFormData({...formData, isVaccine: e.target.checked}),
+              className: 'mr-2'
+            }),
+            '予防接種'
+          )
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-medium mb-1' }, 'メモ'),
+          React.createElement('textarea', {
+            value: formData.memo,
+            onChange: (e) => setFormData({...formData, memo: e.target.value}),
+            className: 'w-full p-2 border rounded',
+            rows: 3,
+            placeholder: '詳細をメモ...'
+          })
+        ),
+        React.createElement('div', { className: 'flex gap-2' },
+          React.createElement('button', {
+            onClick: handleSubmit,
+            className: 'flex-1 bg-blue-500 text-white py-2 rounded'
+          }, '保存'),
+          React.createElement('button', {
+            onClick: onCancel,
+            className: 'flex-1 bg-gray-300 py-2 rounded'
+          }, 'キャンセル')
+        )
+      );
+    }
 
     function App() {
       const [activeTab, setActiveTab] = useState('record');
       const [isWalking, setIsWalking] = useState(false);
       const [currentWalk, setCurrentWalk] = useState(null);
       const [walks, setWalks] = useState([]);
+      const [healthRecords, setHealthRecords] = useState([]);
       const [walkers, setWalkers] = useState([]);
       const [selectedWalkers, setSelectedWalkers] = useState([]);
       const [loading, setLoading] = useState(true);
       const [newWalkerName, setNewWalkerName] = useState('');
       const [showAddWalker, setShowAddWalker] = useState(false);
+      const [uploadingPhotos, setUploadingPhotos] = useState(false);
+      const [photos, setPhotos] = useState([]);
+      const [statsView, setStatsView] = useState('week');
+      const [showHealthForm, setShowHealthForm] = useState(false);
+      const [healthType, setHealthType] = useState('hospital');
       const stationaryTimeRef = useRef(0);
       const lastPositionRef = useRef(null);
 
-      // 散歩者リストを読み込み
       useEffect(() => {
         const unsubscribe = db.collection('walkers').onSnapshot((snapshot) => {
           const walkerList = snapshot.docs.map(doc => ({
@@ -58,11 +215,9 @@
         return () => unsubscribe();
       }, []);
 
-      // 散歩履歴を読み込み
       useEffect(() => {
         const unsubscribe = db.collection('walks')
           .orderBy('startTime', 'desc')
-          .limit(50)
           .onSnapshot((snapshot) => {
             const walkList = snapshot.docs.map(doc => ({
               id: doc.id,
@@ -71,6 +226,20 @@
               endTime: doc.data().endTime?.toDate()
             }));
             setWalks(walkList);
+          });
+        return () => unsubscribe();
+      }, []);
+
+      useEffect(() => {
+        const unsubscribe = db.collection('health')
+          .orderBy('date', 'desc')
+          .onSnapshot((snapshot) => {
+            const records = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+              date: doc.data().date?.toDate()
+            }));
+            setHealthRecords(records);
           });
         return () => unsubscribe();
       }, []);
@@ -91,12 +260,10 @@
 
       const addWalker = async () => {
         if (!newWalkerName.trim()) return;
-        
         await db.collection('walkers').add({
           name: newWalkerName.trim(),
           order: walkers.length
         });
-        
         setNewWalkerName('');
         setShowAddWalker(false);
       };
@@ -107,8 +274,30 @@
         }
       };
 
+      const handlePhotoUpload = async (e) => {
+        const files = Array.from(e.target.files);
+        if (photos.length + files.length > 4) {
+          alert('写真は最大4枚までです');
+          return;
+        }
+        setUploadingPhotos(true);
+        const uploadedUrls = [];
+        for (const file of files) {
+          const storageRef = storage.ref(`walks/${Date.now()}_${file.name}`);
+          await storageRef.put(file);
+          const url = await storageRef.getDownloadURL();
+          uploadedUrls.push(url);
+        }
+        setPhotos([...photos, ...uploadedUrls]);
+        setUploadingPhotos(false);
+      };
+
+      const removePhoto = (index) => {
+        setPhotos(photos.filter((_, i) => i !== index));
+      };
+
       const calculateDistance = (lat1, lng1, lat2, lng2) => {
-        const R = 6371000; // 地球の半径(m)
+        const R = 6371000;
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLng = (lng2 - lng1) * Math.PI / 180;
         const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -120,7 +309,6 @@
 
       const calculateTotalDistance = (positions) => {
         if (positions.length < 2) return 0;
-        
         let total = 0;
         for (let i = 1; i < positions.length; i++) {
           total += calculateDistance(
@@ -136,12 +324,10 @@
           alert('散歩者を選択してください');
           return;
         }
-        
         if (!navigator.geolocation) {
           alert('お使いのブラウザは位置情報に対応していません');
           return;
         }
-
         const walk = {
           walkers: selectedWalkers,
           startTime: new Date(),
@@ -149,9 +335,9 @@
           pee: false,
           poo: false,
           water: false,
-          memo: ''
+          memo: '',
+          photos: []
         };
-
         navigator.geolocation.getCurrentPosition(
           (position) => {
             walk.positions.push({
@@ -167,6 +353,7 @@
             stationaryTimeRef.current = 0;
             setCurrentWalk(walk);
             setIsWalking(true);
+            setPhotos([]);
           },
           (error) => {
             alert('位置情報の取得に失敗しました。位置情報を許可してください。');
@@ -176,7 +363,6 @@
 
       useEffect(() => {
         if (!isWalking || !currentWalk) return;
-
         const interval = setInterval(() => {
           navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -185,8 +371,6 @@
                 lng: position.coords.longitude,
                 time: new Date()
               };
-
-              // 前回の位置との距離を計算
               if (lastPositionRef.current) {
                 const distance = calculateDistance(
                   lastPositionRef.current.lat,
@@ -194,12 +378,8 @@
                   newPos.lat,
                   newPos.lng
                 );
-
-                // 10m以内なら静止時間を加算
                 if (distance <= 10) {
-                  stationaryTimeRef.current += 10; // 10秒間隔で計測
-                  
-                  // 5分(300秒)以上静止していたら自動終了
+                  stationaryTimeRef.current += 10;
                   if (stationaryTimeRef.current >= 300) {
                     if (confirm('5分間その場にとどまっています。散歩を終了しますか?')) {
                       endWalk();
@@ -208,17 +388,14 @@
                     }
                   }
                 } else {
-                  // 移動したら静止時間をリセット
                   stationaryTimeRef.current = 0;
                 }
-
                 lastPositionRef.current = {
                   lat: newPos.lat,
                   lng: newPos.lng,
                   time: Date.now()
                 };
               }
-
               setCurrentWalk(prev => ({
                 ...prev,
                 positions: [...prev.positions, newPos]
@@ -226,17 +403,14 @@
             }
           );
         }, 10000);
-
         return () => clearInterval(interval);
       }, [isWalking, currentWalk]);
 
       const endWalk = async () => {
         if (!currentWalk) return;
-        
         const endTime = new Date();
         const duration = Math.floor((endTime - currentWalk.startTime) / 60000);
         const distance = calculateTotalDistance(currentWalk.positions);
-        
         await db.collection('walks').add({
           walkers: currentWalk.walkers,
           startTime: firebase.firestore.Timestamp.fromDate(currentWalk.startTime),
@@ -247,14 +421,29 @@
           poo: currentWalk.poo,
           water: currentWalk.water,
           memo: currentWalk.memo,
+          photos: photos,
           positions: currentWalk.positions
         });
-        
         setCurrentWalk(null);
         setIsWalking(false);
         setSelectedWalkers([]);
+        setPhotos([]);
         stationaryTimeRef.current = 0;
         lastPositionRef.current = null;
+      };
+
+      const saveHealthRecord = async (data) => {
+        await db.collection('health').add({
+          ...data,
+          date: firebase.firestore.Timestamp.fromDate(new Date(data.date))
+        });
+        setShowHealthForm(false);
+      };
+
+      const deleteHealthRecord = async (id) => {
+        if (confirm('この記録を削除しますか?')) {
+          await db.collection('health').doc(id).delete();
+        }
       };
 
       const formatDate = (date) => {
@@ -263,31 +452,89 @@
         return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
       };
 
+      const formatDateOnly = (date) => {
+        if (!date) return '';
+        const d = new Date(date);
+        return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+      };
+
+      const getStats = (period) => {
+        const now = new Date();
+        const startDate = new Date();
+        if (period === 'week') {
+          startDate.setDate(now.getDate() - 7);
+        } else {
+          startDate.setMonth(now.getMonth() - 1);
+        }
+        const filteredWalks = walks.filter(w => w.startTime >= startDate);
+        const totalDistance = filteredWalks.reduce((sum, w) => sum + (w.distance || 0), 0);
+        const totalDuration = filteredWalks.reduce((sum, w) => sum + (w.duration || 0), 0);
+        const walkerStats = {};
+        filteredWalks.forEach(w => {
+          const walkerList = Array.isArray(w.walkers) ? w.walkers : [w.walkers];
+          walkerList.forEach(walker => {
+            if (!walkerStats[walker]) {
+              walkerStats[walker] = { count: 0, distance: 0, duration: 0 };
+            }
+            walkerStats[walker].count += 1;
+            walkerStats[walker].distance += w.distance || 0;
+            walkerStats[walker].duration += w.duration || 0;
+          });
+        });
+        return {
+          count: filteredWalks.length,
+          totalDistance,
+          totalDuration,
+          avgDuration: filteredWalks.length > 0 ? totalDuration / filteredWalks.length : 0,
+          walkerStats
+        };
+      };
+
+      const getEarnedBadges = () => {
+        const totalCount = walks.length;
+        const totalDistance = walks.reduce((sum, w) => sum + (w.distance || 0), 0);
+        return badges.filter(badge => badge.condition(totalCount, totalDistance));
+      };
+
       if (loading) {
         return React.createElement('div', { className: 'flex items-center justify-center min-h-screen' },
           React.createElement('div', { className: 'text-lg' }, '読み込み中...')
         );
       }
 
-      return React.createElement('div', { className: 'max-w-md mx-auto bg-white min-h-screen' },
-        React.createElement('div', { className: 'bg-blue-500 text-white p-4' },
-          React.createElement('h1', { className: 'text-xl font-bold' }, '🐕 福といっしょ')
+      const stats = getStats(statsView);
+      const earnedBadges = getEarnedBadges();
+
+      return React.createElement('div', { className: 'max-w-md mx-auto bg-white min-h-screen pb-20' },
+        React.createElement('div', { className: 'bg-gradient-to-r from-blue-500 to-purple-500 text-white p-4' },
+          React.createElement('h1', { className: 'text-2xl font-bold' }, '🐕 福といっしょ')
         ),
-        React.createElement('div', { className: 'flex border-b' },
+        React.createElement('div', { className: 'flex border-b overflow-x-auto' },
           React.createElement('button', {
             onClick: () => setActiveTab('record'),
-            className: `flex-1 py-3 ${activeTab === 'record' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
-          }, '記録'),
+            className: `flex-shrink-0 px-4 py-3 ${activeTab === 'record' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
+          }, '散歩記録'),
           React.createElement('button', {
             onClick: () => setActiveTab('history'),
-            className: `flex-1 py-3 ${activeTab === 'history' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
+            className: `flex-shrink-0 px-4 py-3 ${activeTab === 'history' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
           }, '履歴'),
           React.createElement('button', {
+            onClick: () => setActiveTab('health'),
+            className: `flex-shrink-0 px-4 py-3 ${activeTab === 'health' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
+          }, '健康管理'),
+          React.createElement('button', {
+            onClick: () => setActiveTab('stats'),
+            className: `flex-shrink-0 px-4 py-3 ${activeTab === 'stats' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
+          }, '統計'),
+          React.createElement('button', {
+            onClick: () => setActiveTab('badges'),
+            className: `flex-shrink-0 px-4 py-3 ${activeTab === 'badges' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
+          }, 'バッジ'),
+          React.createElement('button', {
             onClick: () => setActiveTab('settings'),
-            className: `flex-1 py-3 ${activeTab === 'settings' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
+            className: `flex-shrink-0 px-4 py-3 ${activeTab === 'settings' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
           }, '設定')
         ),
-        
         activeTab === 'record' && React.createElement('div', { className: 'p-4' },
           !isWalking ? React.createElement('div', { className: 'space-y-4' },
             React.createElement('div', null,
@@ -312,72 +559,229 @@
             ),
             React.createElement('button', {
               onClick: startWalk,
-              className: 'w-full bg-green-500 text-white py-4 rounded-lg text-lg font-bold'
-            }, '散歩開始')
+              className: 'w-full bg-green-500 text-white py-4 rounded-lg text-lg font-bold hover:bg-green-600'
+            }, '🚶 散歩開始')
           ) : React.createElement('div', { className: 'space-y-4' },
-            React.createElement('div', { className: 'bg-blue-50 p-4 rounded' },
-              React.createElement('p', { className: 'text-sm text-gray-600' }, '散歩者: ' + currentWalk?.walkers.join(', ')),
-              React.createElement('p', { className: 'text-sm text-gray-600' }, '経過時間: ' + Math.floor((new Date() - currentWalk?.startTime) / 60000) + '分'),
-              React.createElement('p', { className: 'text-sm text-gray-600' }, '距離: ' + (calculateTotalDistance(currentWalk?.positions || []) / 1000).toFixed(2) + 'km')
+            React.createElement('div', { className: 'bg-blue-50 p-4 rounded-lg' },
+              React.createElement('p', { className: 'text-sm text-gray-600 mb-1' }, '👥 散歩者: ' + currentWalk?.walkers.join(', ')),
+              React.createElement('p', { className: 'text-sm text-gray-600 mb-1' }, '⏱️ 経過時間: ' + Math.floor((new Date() - currentWalk?.startTime) / 60000) + '分'),
+              React.createElement('p', { className: 'text-sm text-gray-600' }, '📍 距離: ' + (calculateTotalDistance(currentWalk?.positions || []) / 1000).toFixed(2) + 'km')
             ),
             React.createElement('div', null,
               React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '記録'),
               React.createElement('div', { className: 'grid grid-cols-3 gap-2' },
                 React.createElement('button', {
                   onClick: () => setCurrentWalk({...currentWalk, pee: !currentWalk.pee}),
-                  className: `py-3 rounded border-2 ${currentWalk?.pee ? 'bg-yellow-100 border-yellow-500' : 'border-gray-300'}`
+                  className: `py-3 rounded-lg border-2 ${currentWalk?.pee ? 'bg-yellow-100 border-yellow-500' : 'border-gray-300'}`
                 }, '💧 おしっこ'),
                 React.createElement('button', {
                   onClick: () => setCurrentWalk({...currentWalk, poo: !currentWalk.poo}),
-                  className: `py-3 rounded border-2 ${currentWalk?.poo ? 'bg-yellow-100 border-yellow-700' : 'border-gray-300'}`
+                  className: `py-3 rounded-lg border-2 ${currentWalk?.poo ? 'bg-amber-100 border-amber-500' : 'border-gray-300'}`
                 }, '💩 うんち'),
                 React.createElement('button', {
                   onClick: () => setCurrentWalk({...currentWalk, water: !currentWalk.water}),
-                  className: `py-3 rounded border-2 ${currentWalk?.water ? 'bg-blue-100 border-blue-500' : 'border-gray-300'}`
+                  className: `py-3 rounded-lg border-2 ${currentWalk?.water ? 'bg-blue-100 border-blue-500' : 'border-gray-300'}`
                 }, '💧 水')
               )
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '写真 (最大4枚)'),
+              React.createElement('div', { className: 'grid grid-cols-4 gap-2 mb-2' },
+                photos.map((url, i) => React.createElement('div', { key: i, className: 'relative' },
+                  React.createElement('img', { src: url, className: 'w-full h-20 object-cover rounded' }),
+                  React.createElement('button', {
+                    onClick: () => removePhoto(i),
+                    className: 'absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 text-xs'
+                  }, '×')
+                ))
+              ),
+              photos.length < 4 && React.createElement('input', {
+                type: 'file',
+                accept: 'image/*',
+                multiple: true,
+                onChange: handlePhotoUpload,
+                disabled: uploadingPhotos,
+                className: 'w-full text-sm'
+              }),
+              uploadingPhotos && React.createElement('p', { className: 'text-sm text-gray-500' }, 'アップロード中...')
             ),
             React.createElement('div', null,
               React.createElement('label', { className: 'block text-sm font-medium mb-2' }, 'メモ'),
               React.createElement('textarea', {
                 value: currentWalk?.memo || '',
                 onChange: (e) => setCurrentWalk({...currentWalk, memo: e.target.value}),
-                className: 'w-full p-2 border rounded',
+                className: 'w-full p-2 border rounded-lg',
                 rows: 3,
                 placeholder: '気づいたことをメモ...'
               })
             ),
             React.createElement('button', {
               onClick: endWalk,
-              className: 'w-full bg-red-500 text-white py-4 rounded-lg text-lg font-bold'
-            }, '散歩終了')
+              className: 'w-full bg-red-500 text-white py-4 rounded-lg text-lg font-bold hover:bg-red-600'
+            }, '🏁 散歩終了')
           )
         ),
-        
         activeTab === 'history' && React.createElement('div', { className: 'p-4' },
           walks.length === 0 ? React.createElement('p', { className: 'text-center text-gray-500 mt-8' }, 'まだ記録がありません') :
           React.createElement('div', { className: 'space-y-3' },
-            walks.map(walk => React.createElement('div', { key: walk.id, className: 'border rounded p-3 bg-white shadow-sm' },
+            walks.map(walk => React.createElement('div', { key: walk.id, className: 'border rounded-lg p-3 bg-white shadow' },
               React.createElement('div', { className: 'flex justify-between items-start mb-2' },
                 React.createElement('div', null,
-                  React.createElement('p', { className: 'font-medium' }, Array.isArray(walk.walkers) ? walk.walkers.join(', ') : walk.walkers),
+                  React.createElement('p', { className: 'font-medium' }, '👥 ' + (Array.isArray(walk.walkers) ? walk.walkers.join(', ') : walk.walkers)),
                   React.createElement('p', { className: 'text-sm text-gray-500' }, formatDate(walk.startTime))
                 ),
                 React.createElement('div', { className: 'text-right' },
-                  React.createElement('p', { className: 'text-sm' }, walk.duration + '分'),
-                  React.createElement('p', { className: 'text-sm' }, (walk.distance / 1000).toFixed(2) + 'km')
+                  React.createElement('p', { className: 'text-sm font-medium' }, '⏱️ ' + walk.duration + '分'),
+                  React.createElement('p', { className: 'text-sm' }, '📍 ' + (walk.distance / 1000).toFixed(2) + 'km')
                 )
               ),
-              React.createElement('div', { className: 'flex gap-2 text-sm' },
-                walk.pee && React.createElement('span', null, '💧おしっこ'),
-                walk.poo && React.createElement('span', null, '💩うんち'),
-                walk.water && React.createElement('span', null, '💧水')
+              React.createElement('div', { className: 'flex gap-2 text-sm mb-2' },
+                walk.pee && React.createElement('span', { className: 'bg-yellow-100 px-2 py-1 rounded' }, '💧おしっこ'),
+                walk.poo && React.createElement('span', { className: 'bg-amber-100 px-2 py-1 rounded' }, '💩うんち'),
+                walk.water && React.createElement('span', { className: 'bg-blue-100 px-2 py-1 rounded' }, '💧水')
+              ),
+              walk.photos && walk.photos.length > 0 && React.createElement('div', { className: 'grid grid-cols-4 gap-1 mb-2' },
+                walk.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'w-full h-16 object-cover rounded' }))
               ),
               walk.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-2 border-t pt-2' }, walk.memo)
             ))
           )
         ),
-        
+        activeTab === 'health' && React.createElement('div', { className: 'p-4' },
+          !showHealthForm ? React.createElement('div', null,
+            React.createElement('div', { className: 'grid grid-cols-2 gap-2 mb-4' },
+              React.createElement('button', {
+                onClick: () => { setHealthType('hospital'); setShowHealthForm(true); },
+                className: 'bg-red-100 p-4 rounded-lg text-center'
+              }, '🏥 病院'),
+              React.createElement('button', {
+                onClick: () => { setHealthType('grooming'); setShowHealthForm(true); },
+                className: 'bg-pink-100 p-4 rounded-lg text-center'
+              }, '✂️ 散髪'),
+              React.createElement('button', {
+                onClick: () => { setHealthType('bath'); setShowHealthForm(true); },
+                className: 'bg-blue-100 p-4 rounded-lg text-center'
+              }, '🛁 入浴'),
+              React.createElement('button', {
+                onClick: () => { setHealthType('medicine'); setShowHealthForm(true); },
+                className: 'bg-green-100 p-4 rounded-lg text-center'
+              }, '💊 薬')
+            ),
+            React.createElement('div', { className: 'space-y-2' },
+              healthRecords.map(record => React.createElement('div', { key: record.id, className: 'border rounded-lg p-3 bg-white shadow' },
+                React.createElement('div', { className: 'flex justify-between items-start' },
+                  React.createElement('div', null,
+                    React.createElement('p', { className: 'font-medium' },
+                      record.type === 'hospital' ? '🏥 病院' :
+                      record.type === 'grooming' ? '✂️ 散髪' :
+                      record.type === 'bath' ? '🛁 入浴' : '💊 薬'
+                    ),
+                    React.createElement('p', { className: 'text-sm text-gray-500' }, formatDateOnly(record.date)),
+                    record.type === 'hospital' && record.hospitalName && React.createElement('p', { className: 'text-sm' }, '病院: ' + record.hospitalName),
+                    record.type === 'hospital' && record.reason && React.createElement('p', { className: 'text-sm' }, '理由: ' + record.reason),
+                    record.type === 'grooming' && record.groomedBy && React.createElement('p', { className: 'text-sm' }, 
+                      record.groomedBy === 'walker' ? '散歩者: ' + (record.walker || '') : '店舗: ' + (record.shopName || '')
+                    ),
+                    record.type === 'medicine' && record.medicineType && React.createElement('p', { className: 'text-sm' }, '種類: ' + record.medicineType),
+                    record.type === 'medicine' && record.isVaccine && React.createElement('p', { className: 'text-sm text-red-600' }, '予防接種'),
+                    record.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, record.memo)
+                  ),
+                  React.createElement('button', {
+                    onClick: () => deleteHealthRecord(record.id),
+                    className: 'text-red-500 text-sm'
+                  }, '削除')
+                )
+              ))
+            )
+          ) : React.createElement(HealthForm, {
+            type: healthType,
+            walkers: walkers,
+            onSave: saveHealthRecord,
+            onCancel: () => setShowHealthForm(false)
+          })
+        ),
+        activeTab === 'stats' && React.createElement('div', { className: 'p-4' },
+          React.createElement('div', { className: 'flex gap-2 mb-4' },
+            React.createElement('button', {
+              onClick: () => setStatsView('week'),
+              className: `flex-1 py-2 rounded ${statsView === 'week' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`
+            }, '週間'),
+            React.createElement('button', {
+              onClick: () => setStatsView('month'),
+              className: `flex-1 py-2 rounded ${statsView === 'month' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`
+            }, '月間')
+          ),
+          React.createElement('div', { className: 'space-y-4' },
+            React.createElement('div', { className: 'bg-gradient-to-r from-blue-100 to-purple-100 p-4 rounded-lg' },
+              React.createElement('h3', { className: 'font-bold mb-2' }, '📊 ' + (statsView === 'week' ? '週間' : '月間') + 'レポート'),
+              React.createElement('div', { className: 'grid grid-cols-2 gap-3' },
+                React.createElement('div', { className: 'bg-white p-3 rounded' },
+                  React.createElement('p', { className: 'text-sm text-gray-600' }, '散歩回数'),
+                  React.createElement('p', { className: 'text-2xl font-bold text-blue-600' }, stats.count + '回')
+                ),
+                React.createElement('div', { className: 'bg-white p-3 rounded' },
+                  React.createElement('p', { className: 'text-sm text-gray-600' }, '合計距離'),
+                  React.createElement('p', { className: 'text-2xl font-bold text-green-600' }, (stats.totalDistance / 1000).toFixed(1) + 'km')
+                ),
+                React.createElement('div', { className: 'bg-white p-3 rounded' },
+                  React.createElement('p', { className: 'text-sm text-gray-600' }, '合計時間'),
+                  React.createElement('p', { className: 'text-2xl font-bold text-purple-600' }, stats.totalDuration + '分')
+                ),
+                React.createElement('div', { className: 'bg-white p-3 rounded' },
+                  React.createElement('p', { className: 'text-sm text-gray-600' }, '平均時間'),
+                  React.createElement('p', { className: 'text-2xl font-bold text-orange-600' }, Math.round(stats.avgDuration) + '分')
+                )
+              )
+            ),
+            React.createElement('div', { className: 'bg-white p-4 rounded-lg shadow' },
+              React.createElement('h3', { className: 'font-bold mb-3' }, '👥 散歩者別統計'),
+              Object.keys(stats.walkerStats).length === 0 ? 
+                React.createElement('p', { className: 'text-gray-500 text-center' }, 'データがありません') :
+                React.createElement('div', { className: 'space-y-3' },
+                  Object.entries(stats.walkerStats)
+                    .sort((a, b) => b[1].count - a[1].count)
+                    .map(([name, data]) => React.createElement('div', { key: name, className: 'border-b pb-2' },
+                      React.createElement('p', { className: 'font-medium mb-1' }, name),
+                      React.createElement('div', { className: 'grid grid-cols-3 gap-2 text-sm' },
+                        React.createElement('div', null,
+                          React.createElement('span', { className: 'text-gray-600' }, '回数: '),
+                          React.createElement('span', { className: 'font-bold' }, data.count + '回')
+                        ),
+                        React.createElement('div', null,
+                          React.createElement('span', { className: 'text-gray-600' }, '距離: '),
+                          React.createElement('span', { className: 'font-bold' }, (data.distance / 1000).toFixed(1) + 'km')
+                        ),
+                        React.createElement('div', null,
+                          React.createElement('span', { className: 'text-gray-600' }, '時間: '),
+                          React.createElement('span', { className: 'font-bold' }, data.duration + '分')
+                        )
+                      )
+                    ))
+                )
+            )
+          )
+        ),
+        activeTab === 'badges' && React.createElement('div', { className: 'p-4' },
+          React.createElement('h2', { className: 'text-xl font-bold mb-4' }, '🏆 実績・バッジ'),
+          React.createElement('div', { className: 'grid grid-cols-2 gap-3' },
+            badges.map(badge => {
+              const earned = earnedBadges.find(b => b.id === badge.id);
+              return React.createElement('div', {
+                key: badge.id,
+                className: `p-4 rounded-lg text-center ${earned ? 'bg-gradient-to-br from-yellow-100 to-orange-100 border-2 border-yellow-400' : 'bg-gray-100 opacity-50'}`
+              },
+                React.createElement('div', { className: 'text-4xl mb-2' }, badge.icon),
+                React.createElement('p', { className: 'font-bold text-sm' }, badge.name),
+                earned && React.createElement('p', { className: 'text-xs text-green-600 mt-1' }, '✓ 獲得済み')
+              );
+            })
+          ),
+          React.createElement('div', { className: 'mt-6 bg-blue-50 p-4 rounded-lg' },
+            React.createElement('h3', { className: 'font-bold mb-2' }, '📈 あなたの記録'),
+            React.createElement('p', { className: 'text-sm mb-1' }, '総散歩回数: ' + walks.length + '回'),
+            React.createElement('p', { className: 'text-sm' }, '総距離: ' + (walks.reduce((sum, w) => sum + (w.distance || 0), 0) / 1000).toFixed(1) + 'km')
+          )
+        ),
         activeTab === 'settings' && React.createElement('div', { className: 'p-4' },
           React.createElement('h2', { className: 'text-lg font-bold mb-4' }, '散歩者の管理'),
           React.createElement('div', { className: 'space-y-2 mb-4' },
