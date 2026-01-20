@@ -466,90 +466,109 @@
 
       const startWalk = () => {
         if (selectedWalkers.length === 0) {
-          alert('散歩者を選択してください');
-          return;
+            alert('散歩者を選択してください');
+            return;
         }
         if (!navigator.geolocation) {
-          alert('お使いのブラウザは位置情報に対応していません');
-          return;
+            alert('お使いのブラウザは位置情報に対応していません');
+            return;
         }
         const walk = {
-          walkers: selectedWalkers,
-          startTime: new Date(),
-          positions: [],
-          pee: false,
-          poo: false,
-          water: false,
-          memo: '',
-          photos: []
+            walkers: selectedWalkers,
+            startTime: new Date(),
+            positions: [],
+            pee: false,
+            poo: false,
+            water: false,
+            memo: '',
+            photos: []
         };
+        // 高精度モードを有効化
         navigator.geolocation.getCurrentPosition(
-          (position) => {
+            (position) => {
             walk.positions.push({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-              time: new Date()
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                time: new Date(),
+                accuracy: position.coords.accuracy
             });
             lastPositionRef.current = {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-              time: Date.now()
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                time: Date.now()
             };
             stationaryTimeRef.current = 0;
             setCurrentWalk(walk);
             setIsWalking(true);
             setPhotos([]);
-          },
-          (error) => {
+            },
+            (error) => {
             alert('位置情報の取得に失敗しました。位置情報を許可してください。');
-          }
+            },
+            {
+            enableHighAccuracy: true,  // 高精度モード
+            timeout: 10000,
+            maximumAge: 0
+            }
         );
-      };
+        };
 
-      useEffect(() => {
+        useEffect(() => {
         if (!isWalking || !currentWalk) return;
         const interval = setInterval(() => {
-          navigator.geolocation.getCurrentPosition(
+            navigator.geolocation.getCurrentPosition(
             (position) => {
-              const newPos = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude,
-                time: new Date()
-              };
-              if (lastPositionRef.current) {
-                const distance = calculateDistance(
-                  lastPositionRef.current.lat,
-                  lastPositionRef.current.lng,
-                  newPos.lat,
-                  newPos.lng
-                );
-                if (distance <= 10) {
-                  stationaryTimeRef.current += 10;
-                  if (stationaryTimeRef.current >= 300) {
-                    if (confirm('5分間その場にとどまっています。散歩を終了しますか?')) {
-                      endWalk();
-                    } else {
-                      stationaryTimeRef.current = 0;
-                    }
-                  }
-                } else {
-                  stationaryTimeRef.current = 0;
-                }
-                lastPositionRef.current = {
-                  lat: newPos.lat,
-                  lng: newPos.lng,
-                  time: Date.now()
+                // 精度が50m以内の場合のみ記録
+                if (position.coords.accuracy <= 50) {
+                const newPos = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                    time: new Date(),
+                    accuracy: position.coords.accuracy
                 };
-              }
-              setCurrentWalk(prev => ({
-                ...prev,
-                positions: [...prev.positions, newPos]
-              }));
+                if (lastPositionRef.current) {
+                    const distance = calculateDistance(
+                    lastPositionRef.current.lat,
+                    lastPositionRef.current.lng,
+                    newPos.lat,
+                    newPos.lng
+                    );
+                    if (distance <= 10) {
+                    stationaryTimeRef.current += 5;  // 5秒間隔に変更
+                    if (stationaryTimeRef.current >= 300) {
+                        if (confirm('5分間その場にとどまっています。散歩を終了しますか?')) {
+                        endWalk();
+                        } else {
+                        stationaryTimeRef.current = 0;
+                        }
+                    }
+                    } else {
+                    stationaryTimeRef.current = 0;
+                    }
+                    lastPositionRef.current = {
+                    lat: newPos.lat,
+                    lng: newPos.lng,
+                    time: Date.now()
+                    };
+                }
+                setCurrentWalk(prev => ({
+                    ...prev,
+                    positions: [...prev.positions, newPos]
+                }));
+                }
+            },
+            (error) => {
+                console.log('GPS取得エラー:', error);
+            },
+            {
+                enableHighAccuracy: true,  // 高精度モード
+                timeout: 10000,
+                maximumAge: 0
             }
-          );
-        }, 10000);
+            );
+        }, 5000);  // 10秒→5秒に変更
         return () => clearInterval(interval);
-      }, [isWalking, currentWalk]);
+        }, [isWalking, currentWalk]);
 
       const endWalk = async () => {
         if (!currentWalk) return;
