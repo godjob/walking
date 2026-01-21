@@ -18,7 +18,7 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        const APP_VERSION = 'v1.3.6';
+        const APP_VERSION = 'v1.3.7';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -1076,12 +1076,15 @@
                                         React.createElement('div', {
                                             className: 'flex justify-between items-start mb-2'
                                         },
-                                            // 左上：日時・時間・距離
-                                            // 左下：アイコン群
+                                            // 左側コンテナ
                                             React.createElement('div', null,
+                                                // 1. タイトル（新規追加）
+                                                React.createElement('p', { className: 'font-medium' }, '🚶 散歩'),
+                                                // 2. 日時・時間・距離
                                                 React.createElement('div', { className: 'text-xs text-gray-500 mb-1' },
                                                     formatDate(item.startTime) + ' ⏱️' + item.duration + '分 📍' + (item.distance / 1000).toFixed(2) + 'km'
                                                 ),
+                                                // 3. アイコン群
                                                 React.createElement('div', { className: 'flex items-center gap-2' },
                                                     React.createElement('span', { className: 'text-xl' }, '🐕'),
                                                     React.createElement('div', { className: 'flex gap-1' },
@@ -1185,12 +1188,15 @@
                                     React.createElement('div', {
                                         className: 'flex justify-between items-start mb-2'
                                     },
-                                        // 左上：日時・時間・距離
-                                        // 左下：アイコン群
+                                        // 左側コンテナ
                                         React.createElement('div', null,
+                                            // 1. タイトル（新規追加）
+                                            React.createElement('p', { className: 'font-medium' }, '🚶 散歩'),
+                                            // 2. 日時・時間・距離
                                             React.createElement('div', { className: 'text-xs text-gray-500 mb-1' },
                                                 formatDate(walk.startTime) + ' ⏱️' + walk.duration + '分 📍' + (walk.distance / 1000).toFixed(2) + 'km'
                                             ),
+                                            // 3. アイコン群
                                             React.createElement('div', { className: 'flex items-center gap-2' },
                                                 React.createElement('span', { className: 'text-xl' }, '🐕'),
                                                 React.createElement('div', { className: 'flex gap-1' },
