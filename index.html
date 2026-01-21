@@ -18,7 +18,7 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        const APP_VERSION = 'v1.2.2';
+        const APP_VERSION = 'v1.3.0';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -217,23 +217,7 @@
             );
         }
 
-        function HealthForm({ type, walkers, onSave, onCancel, record }) {
-            const [formData, setFormData] = useState({
-                id: record?.id || null,
-                type: record?.type || type,
-                date: record ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                time: record ? new Date(record.date).toTimeString().slice(0, 5) : new Date().toTimeString().slice(0, 5),
-                walker: record?.walker || '',
-                hospitalName: record?.hospitalName || '',
-                reason: record?.reason || '',
-                groomedBy: record?.groomedBy || 'walker',
-                shopName: record?.shopName || '',
-                medicineType: record?.medicineType || '',
-                isVaccine: record?.isVaccine || false,
-                pooFirmness: record?.pooFirmness || 3,
-                memo: record?.memo || ''
-            });
-
+        function HealthForm({ type, walkers, formData, onChange, onSave, onCancel }) {
             const handleSubmit = () => {
                 if (!formData.walker) {
                     alert('担当者を選択してください');
@@ -267,7 +251,7 @@
 
             return React.createElement('div', { className: 'space-y-4 bg-white p-4 rounded-lg' },
                 React.createElement('h3', { className: 'font-bold text-lg' },
-                    (record ? '✏️ 編集: ' : '') +
+                    (formData.id ? '✏️ 編集: ' : '') +
                     (type === 'hospital' ? '🏥 病院記録' :
                         type === 'grooming' ? '✂️ 散髪記録' :
                             type === 'bath' ? '🛁 入浴記録' :
@@ -277,7 +261,7 @@
                     React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '担当者'),
                     React.createElement('select', {
                         value: formData.walker,
-                        onChange: (e) => setFormData({ ...formData, walker: e.target.value }),
+                        onChange: (e) => onChange({ ...formData, walker: e.target.value }),
                         className: 'w-full p-2 border rounded'
                     },
                         React.createElement('option', { value: '' }, '担当者を選択'),
@@ -289,7 +273,7 @@
                     React.createElement('input', {
                         type: 'date',
                         value: formData.date,
-                        onChange: (e) => setFormData({ ...formData, date: e.target.value }),
+                        onChange: (e) => onChange({ ...formData, date: e.target.value }),
                         className: 'w-full p-2 border rounded'
                     })
                 ),
@@ -298,7 +282,7 @@
                     React.createElement('input', {
                         type: 'time',
                         value: formData.time,
-                        onChange: (e) => setFormData({ ...formData, time: e.target.value }),
+                        onChange: (e) => onChange({ ...formData, time: e.target.value }),
                         className: 'w-full p-2 border rounded'
                     })
                 ),
@@ -307,7 +291,7 @@
                     React.createElement('input', {
                         type: 'text',
                         value: formData.hospitalName,
-                        onChange: (e) => setFormData({ ...formData, hospitalName: e.target.value }),
+                        onChange: (e) => onChange({ ...formData, hospitalName: e.target.value }),
                         className: 'w-full p-2 border rounded',
                         placeholder: '例: ○○動物病院'
                     }),
@@ -315,7 +299,7 @@
                     React.createElement('input', {
                         type: 'text',
                         value: formData.reason,
-                        onChange: (e) => setFormData({ ...formData, reason: e.target.value }),
+                        onChange: (e) => onChange({ ...formData, reason: e.target.value }),
                         className: 'w-full p-2 border rounded',
                         placeholder: '例: 定期検診'
                     })
@@ -329,7 +313,7 @@
                                 name: 'groomedBy',
                                 value: 'walker',
                                 checked: formData.groomedBy === 'walker',
-                                onChange: (e) => setFormData({ ...formData, groomedBy: e.target.value }),
+                                onChange: (e) => onChange({ ...formData, groomedBy: e.target.value }),
                                 className: 'mr-2'
                             }),
                             '自宅'
@@ -340,7 +324,7 @@
                                 name: 'groomedBy',
                                 value: 'shop',
                                 checked: formData.groomedBy === 'shop',
-                                onChange: (e) => setFormData({ ...formData, groomedBy: e.target.value }),
+                                onChange: (e) => onChange({ ...formData, groomedBy: e.target.value }),
                                 className: 'mr-2'
                             }),
                             '店舗'
@@ -348,7 +332,7 @@
                         formData.groomedBy === 'shop' && React.createElement('input', {
                             type: 'text',
                             value: formData.shopName,
-                            onChange: (e) => setFormData({ ...formData, shopName: e.target.value }),
+                            onChange: (e) => onChange({ ...formData, shopName: e.target.value }),
                             className: 'w-full p-2 border rounded ml-6',
                             placeholder: '店舗名を入力'
                         })
@@ -359,7 +343,7 @@
                     React.createElement('input', {
                         type: 'text',
                         value: formData.medicineType,
-                        onChange: (e) => setFormData({ ...formData, medicineType: e.target.value }),
+                        onChange: (e) => onChange({ ...formData, medicineType: e.target.value }),
                         className: 'w-full p-2 border rounded',
                         placeholder: '例: フィラリア予防薬'
                     }),
@@ -367,7 +351,7 @@
                         React.createElement('input', {
                             type: 'checkbox',
                             checked: formData.isVaccine,
-                            onChange: (e) => setFormData({ ...formData, isVaccine: e.target.checked }),
+                            onChange: (e) => onChange({ ...formData, isVaccine: e.target.checked }),
                             className: 'mr-2'
                         }),
                         '予防接種'
@@ -382,7 +366,7 @@
                         min: 1,
                         max: 5,
                         value: formData.pooFirmness,
-                        onChange: (e) => setFormData({ ...formData, pooFirmness: parseInt(e.target.value) }),
+                        onChange: (e) => onChange({ ...formData, pooFirmness: parseInt(e.target.value) }),
                         className: 'w-full'
                     }),
                     React.createElement('div', { className: 'flex justify-between text-xs text-gray-500 mt-1' },
@@ -395,7 +379,7 @@
                     React.createElement('label', { className: 'block text-sm font-medium mb-1' }, 'メモ'),
                     React.createElement('textarea', {
                         value: formData.memo,
-                        onChange: (e) => setFormData({ ...formData, memo: e.target.value }),
+                        onChange: (e) => onChange({ ...formData, memo: e.target.value }),
                         className: 'w-full p-2 border rounded',
                         rows: 3,
                         placeholder: '詳細をメモ...'
@@ -436,6 +420,9 @@
             const [now, setNow] = useState(new Date());
             const stationaryTimeRef = useRef(0);
             const lastPositionRef = useRef(null);
+
+            const [healthFormData, setHealthFormData] = useState({});
+            const [originalHealthData, setOriginalHealthData] = useState({});
 
             useEffect(() => {
                 let timer;
@@ -478,13 +465,60 @@
                     .onSnapshot((snapshot) => {
                         const records = snapshot.docs.map(doc => ({
                             ...doc.data(),
-                            id: doc.id, // IDを最後に配置して、doc.data()に含まれる不正なnullIDを上書きする
+                            id: doc.id,
                             date: doc.data().date?.toDate()
                         }));
                         setHealthRecords(records);
                     });
                 return () => unsubscribe();
             }, []);
+
+            const initHealthForm = (type, record) => {
+                const initialData = {
+                    id: record?.id || null,
+                    type: record?.type || type,
+                    date: record ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                    time: record ? new Date(record.date).toTimeString().slice(0, 5) : new Date().toTimeString().slice(0, 5),
+                    walker: record?.walker || '',
+                    hospitalName: record?.hospitalName || '',
+                    reason: record?.reason || '',
+                    groomedBy: record?.groomedBy || 'walker',
+                    shopName: record?.shopName || '',
+                    medicineType: record?.medicineType || '',
+                    isVaccine: record?.isVaccine || false,
+                    pooFirmness: record?.pooFirmness || 3,
+                    memo: record?.memo || ''
+                };
+                setHealthFormData(initialData);
+                setOriginalHealthData(initialData);
+                setHealthType(type);
+                if (record) setEditingHealth(record);
+                setShowHealthForm(true);
+            };
+
+            const handleTabChange = (newTab) => {
+                if (isWalking && newTab !== 'walk') {
+                    alert('散歩中です！');
+                    return;
+                }
+
+                if (activeTab === 'health' && showHealthForm) {
+                    const isDirty = JSON.stringify(healthFormData) !== JSON.stringify(originalHealthData);
+                    if (isDirty) {
+                        if (confirm('変更内容を保存しますか？\nOK: 保存して移動\nキャンセル: 変更を破棄して移動')) {
+                            saveHealthRecord(healthFormData);
+                        } else {
+                            setShowHealthForm(false);
+                            setEditingHealth(null);
+                        }
+                    } else {
+                        setShowHealthForm(false);
+                        setEditingHealth(null);
+                    }
+                }
+
+                setActiveTab(newTab);
+            };
 
             const toggleWalker = (walkerName) => {
                 setSelectedWalkers(prev => {
@@ -632,11 +666,9 @@
                                     if (distance <= 10) {
                                         stationaryTimeRef.current += 5;
                                         if (stationaryTimeRef.current >= 300) {
-                                            if (confirm('5分間その場にとどまっています。散歩を終了しますか?')) {
-                                                endWalk();
-                                            } else {
-                                                stationaryTimeRef.current = 0;
-                                            }
+                                            endWalk();
+                                            alert('5分間移動がなかったため、散歩を終了しました。');
+                                            stationaryTimeRef.current = 0;
                                         }
                                     } else {
                                         stationaryTimeRef.current = 0;
@@ -664,7 +696,7 @@
                     );
                 }, 5000);
                 return () => clearInterval(interval);
-            }, [isWalking, currentWalk]);
+            }, [isWalking, currentWalk, photos]);
 
             const endWalk = async () => {
                 if (!currentWalk) return;
@@ -713,7 +745,6 @@
                     date: firebase.firestore.Timestamp.fromDate(dateTime)
                 };
 
-                // データを保存する前にIDフィールドを削除する（重要）
                 delete recordData.id;
 
                 if (data.id) {
@@ -835,27 +866,27 @@
                 ),
                 React.createElement('div', { className: 'flex border-b overflow-x-auto' },
                     React.createElement('button', {
-                        onClick: () => setActiveTab('dashboard'),
+                        onClick: () => handleTabChange('dashboard'),
                         className: `flex-shrink-0 px-4 py-3 ${activeTab === 'dashboard' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
                     }, 'ダッシュボード'),
                     React.createElement('button', {
-                        onClick: () => setActiveTab('walk'),
+                        onClick: () => handleTabChange('walk'),
                         className: `flex-shrink-0 px-4 py-3 ${activeTab === 'walk' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
                     }, '散歩'),
                     React.createElement('button', {
-                        onClick: () => setActiveTab('health'),
+                        onClick: () => handleTabChange('health'),
                         className: `flex-shrink-0 px-4 py-3 ${activeTab === 'health' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
                     }, '健康管理'),
                     React.createElement('button', {
-                        onClick: () => setActiveTab('stats'),
+                        onClick: () => handleTabChange('stats'),
                         className: `flex-shrink-0 px-4 py-3 ${activeTab === 'stats' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
                     }, '統計'),
                     React.createElement('button', {
-                        onClick: () => setActiveTab('badges'),
+                        onClick: () => handleTabChange('badges'),
                         className: `flex-shrink-0 px-4 py-3 ${activeTab === 'badges' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
                     }, 'バッジ'),
                     React.createElement('button', {
-                        onClick: () => setActiveTab('settings'),
+                        onClick: () => handleTabChange('settings'),
                         className: `flex-shrink-0 px-4 py-3 ${activeTab === 'settings' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
                     }, '設定')
                 ),
@@ -964,12 +995,7 @@
                                             ),
                                             React.createElement('div', { className: 'flex flex-col gap-2' },
                                                 React.createElement('button', {
-                                                    onClick: () => {
-                                                        setActiveTab('health');
-                                                        setHealthType(item.type);
-                                                        setEditingHealth(item);
-                                                        setShowHealthForm(true);
-                                                    },
+                                                    onClick: () => initHealthForm(item.type, item),
                                                     className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded'
                                                 }, '編集'),
                                                 React.createElement('button', {
@@ -1132,23 +1158,23 @@
                     !showHealthForm ? React.createElement('div', null,
                         React.createElement('div', { className: 'grid grid-cols-3 gap-2 mb-6' },
                             React.createElement('button', {
-                                onClick: () => { setHealthType('hospital'); setEditingHealth(null); setShowHealthForm(true); },
+                                onClick: () => initHealthForm('hospital', null),
                                 className: 'bg-red-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
                             }, React.createElement('span', { className: 'text-2xl mb-1' }, '🏥'), React.createElement('span', { className: 'text-xs font-bold' }, '病院')),
                             React.createElement('button', {
-                                onClick: () => { setHealthType('grooming'); setEditingHealth(null); setShowHealthForm(true); },
+                                onClick: () => initHealthForm('grooming', null),
                                 className: 'bg-pink-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
                             }, React.createElement('span', { className: 'text-2xl mb-1' }, '✂️'), React.createElement('span', { className: 'text-xs font-bold' }, '散髪')),
                             React.createElement('button', {
-                                onClick: () => { setHealthType('bath'); setEditingHealth(null); setShowHealthForm(true); },
+                                onClick: () => initHealthForm('bath', null),
                                 className: 'bg-blue-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
                             }, React.createElement('span', { className: 'text-2xl mb-1' }, '🛁'), React.createElement('span', { className: 'text-xs font-bold' }, '入浴')),
                             React.createElement('button', {
-                                onClick: () => { setHealthType('medicine'); setEditingHealth(null); setShowHealthForm(true); },
+                                onClick: () => initHealthForm('medicine', null),
                                 className: 'bg-green-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
                             }, React.createElement('span', { className: 'text-2xl mb-1' }, '💊'), React.createElement('span', { className: 'text-xs font-bold' }, '薬')),
                             React.createElement('button', {
-                                onClick: () => { setHealthType('excretion'); setEditingHealth(null); setShowHealthForm(true); },
+                                onClick: () => initHealthForm('excretion', null),
                                 className: 'bg-yellow-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
                             }, React.createElement('span', { className: 'text-2xl mb-1' }, '💩'), React.createElement('span', { className: 'text-xs font-bold' }, '排泄'))
                         ),
@@ -1179,7 +1205,7 @@
                                         ),
                                         React.createElement('div', { className: 'flex flex-col gap-2' },
                                             React.createElement('button', {
-                                                onClick: () => { setHealthType(record.type); setEditingHealth(record); setShowHealthForm(true); },
+                                                onClick: () => initHealthForm(record.type, record),
                                                 className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded'
                                             }, '編集'),
                                             React.createElement('button', {
@@ -1193,7 +1219,8 @@
                     ) : React.createElement(HealthForm, {
                         type: healthType,
                         walkers: walkers,
-                        record: editingHealth,
+                        formData: healthFormData,
+                        onChange: setHealthFormData,
                         onSave: saveHealthRecord,
                         onCancel: () => { setShowHealthForm(false); setEditingHealth(null); }
                     })
