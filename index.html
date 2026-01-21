@@ -18,7 +18,7 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        const APP_VERSION = 'v1.3.0';
+        const APP_VERSION = 'v1.3.1';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -126,8 +126,10 @@
                 pee: walk.pee || false,
                 poo: walk.poo || false,
                 water: walk.water || false,
-                memo: walk.memo || ''
+                memo: walk.memo || '',
+                photos: walk.photos || []
             });
+            const [uploading, setUploading] = useState(false);
 
             const toggleWalker = (walkerName) => {
                 setFormData(prev => ({
@@ -135,6 +137,35 @@
                     walkers: prev.walkers.includes(walkerName)
                         ? prev.walkers.filter(w => w !== walkerName)
                         : [...prev.walkers, walkerName]
+                }));
+            };
+
+            const handlePhotoUpload = async (e) => {
+                const files = Array.from(e.target.files);
+                if (files.length === 0) return;
+
+                setUploading(true);
+                try {
+                    const newUrls = [];
+                    for (const file of files) {
+                        const ref = storage.ref(`walks/${Date.now()}_${file.name}`);
+                        await ref.put(file);
+                        const url = await ref.getDownloadURL();
+                        newUrls.push(url);
+                    }
+                    setFormData(prev => ({ ...prev, photos: [...prev.photos, ...newUrls] }));
+                } catch (err) {
+                    alert('アップロードに失敗しました: ' + err);
+                } finally {
+                    setUploading(false);
+                    e.target.value = '';
+                }
+            };
+
+            const removePhoto = (index) => {
+                setFormData(prev => ({
+                    ...prev,
+                    photos: prev.photos.filter((_, i) => i !== index)
                 }));
             };
 
@@ -191,6 +222,25 @@
                                         className: `py-3 rounded-lg border-2 ${formData.water ? 'bg-blue-100 border-blue-500' : 'border-gray-300'}`
                                     }, '💧 水')
                                 )
+                            ),
+                            React.createElement('div', null,
+                                React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '写真'),
+                                React.createElement('div', { className: 'grid grid-cols-4 gap-2 mb-2' },
+                                    formData.photos.map((url, i) => React.createElement('div', { key: i, className: 'relative' },
+                                        React.createElement('img', { src: url, className: 'w-full h-16 object-cover rounded' }),
+                                        React.createElement('button', {
+                                            onClick: () => removePhoto(i),
+                                            className: 'absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 text-xs'
+                                        }, '×')
+                                    ))
+                                ),
+                                React.createElement('input', {
+                                    type: 'file', accept: 'image/*', multiple: true,
+                                    onChange: handlePhotoUpload,
+                                    disabled: uploading,
+                                    className: 'w-full text-sm'
+                                }),
+                                uploading && React.createElement('p', { className: 'text-sm text-gray-500' }, 'アップロード中...')
                             ),
                             React.createElement('div', null,
                                 React.createElement('label', { className: 'block text-sm font-medium mb-2' }, 'メモ'),
@@ -557,15 +607,21 @@
                     return;
                 }
                 setUploadingPhotos(true);
-                const uploadedUrls = [];
-                for (const file of files) {
-                    const storageRef = storage.ref(`walks/${Date.now()}_${file.name}`);
-                    await storageRef.put(file);
-                    const url = await storageRef.getDownloadURL();
-                    uploadedUrls.push(url);
+                try {
+                    const uploadedUrls = [];
+                    for (const file of files) {
+                        const storageRef = storage.ref(`walks/${Date.now()}_${file.name}`);
+                        await storageRef.put(file);
+                        const url = await storageRef.getDownloadURL();
+                        uploadedUrls.push(url);
+                    }
+                    setPhotos(prev => [...prev, ...uploadedUrls]);
+                } catch (error) {
+                    alert('アップロード中にエラーが発生しました: ' + error.message);
+                } finally {
+                    setUploadingPhotos(false);
+                    e.target.value = '';
                 }
-                setPhotos([...photos, ...uploadedUrls]);
-                setUploadingPhotos(false);
             };
 
             const removePhoto = (index) => {
@@ -1149,8 +1205,9 @@
                         ),
                         React.createElement('button', {
                             onClick: () => { if (confirm('散歩を終了しますか？')) endWalk(); },
-                            className: 'w-full bg-red-500 text-white py-4 rounded-lg text-xl font-bold hover:bg-red-600 shadow-md'
-                        }, '🏁 散歩終了')
+                            disabled: uploadingPhotos, // アップロード中は無効化
+                            className: `w-full py-4 rounded-lg text-xl font-bold shadow-md ${uploadingPhotos ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`
+                        }, uploadingPhotos ? '写真アップロード中...' : '🏁 散歩終了')
                     )
                 ),
 
