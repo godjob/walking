@@ -18,7 +18,7 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        const APP_VERSION = 'v1.3.3';
+        const APP_VERSION = 'v1.3.4';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -44,7 +44,7 @@
             { id: 'distance100', name: '合計100km', icon: '🎖️', condition: (c, d) => d >= 100000 }
         ];
 
-        // 画像圧縮ユーティリティ関数
+        // 画像圧縮ユーティリティ
         const compressImage = (file) => {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -54,14 +54,12 @@
                     img.src = event.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 1200; // 最大幅を1200pxに制限
+                        const MAX_WIDTH = 1200;
                         const scaleSize = img.width > MAX_WIDTH ? MAX_WIDTH / img.width : 1;
                         canvas.width = img.width * scaleSize;
                         canvas.height = img.height * scaleSize;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                        // JPEG形式、品質0.7（70%）で圧縮
                         canvas.toBlob((blob) => {
                             if (blob) {
                                 resolve(blob);
@@ -99,6 +97,42 @@
             } else {
                 return '全期間';
             }
+        }
+
+        // 写真拡大ビューワー
+        function PhotoViewer({ src, onClose }) {
+            const [scale, setScale] = useState(1);
+
+            useEffect(() => {
+                document.body.style.overflow = 'hidden';
+                return () => document.body.style.overflow = 'auto';
+            }, []);
+
+            return React.createElement('div', {
+                className: 'fixed inset-0 bg-black z-[60] flex items-center justify-center overflow-hidden',
+                onClick: onClose
+            },
+                React.createElement('div', { className: 'absolute top-4 right-4 z-10 flex gap-4' },
+                    React.createElement('button', {
+                        className: 'bg-gray-800 text-white p-3 rounded-full opacity-80 hover:opacity-100',
+                        onClick: (e) => { e.stopPropagation(); setScale(s => Math.min(s + 0.5, 3)); }
+                    }, '➕'),
+                    React.createElement('button', {
+                        className: 'bg-gray-800 text-white p-3 rounded-full opacity-80 hover:opacity-100',
+                        onClick: (e) => { e.stopPropagation(); setScale(s => Math.max(s - 0.5, 1)); }
+                    }, '➖'),
+                    React.createElement('button', {
+                        className: 'bg-white text-black p-3 rounded-full opacity-80 hover:opacity-100 font-bold',
+                        onClick: onClose
+                    }, '✕')
+                ),
+                React.createElement('img', {
+                    src: src,
+                    className: 'transition-transform duration-200 ease-out max-w-full max-h-full object-contain',
+                    style: { transform: `scale(${scale})` },
+                    onClick: (e) => e.stopPropagation()
+                })
+            );
         }
 
         function MapView({ positions, onClose }) {
@@ -178,11 +212,10 @@
 
                 setUploading(true);
                 try {
-                    // 画像圧縮とアップロード処理
                     const uploadPromises = files.map(async (file) => {
                         const compressedBlob = await compressImage(file);
                         const randomId = Math.random().toString(36).substring(7);
-                        const fileName = file.name.split('.')[0] + '.jpg'; // JPEGとして保存
+                        const fileName = file.name.split('.')[0] + '.jpg';
                         const ref = storage.ref(`walks/${Date.now()}_${randomId}_${fileName}`);
                         await ref.put(compressedBlob);
                         return await ref.getDownloadURL();
@@ -503,6 +536,7 @@
             const [editingWalk, setEditingWalk] = useState(null);
             const [editingHealth, setEditingHealth] = useState(null);
             const [showMap, setShowMap] = useState(null);
+            const [viewingPhoto, setViewingPhoto] = useState(null); // 写真ビューワー用State
             const [now, setNow] = useState(new Date());
             const stationaryTimeRef = useRef(0);
             const lastPositionRef = useRef(null);
@@ -1071,6 +1105,15 @@
                                             item.water && React.createElement('span', {
                                                 className: 'bg-blue-100 px-2 py-1 rounded'
                                             }, '💧水')
+                                        ),
+                                        // ダッシュボードへの写真表示追加
+                                        item.photos && item.photos.length > 0 &&
+                                        React.createElement('div', { className: 'flex gap-1 mt-2 overflow-x-auto' },
+                                            item.photos.map((url, i) => React.createElement('img', {
+                                                key: i, src: url,
+                                                className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200',
+                                                onClick: () => setViewingPhoto(url)
+                                            }))
                                         )
                                     ) :
                                     React.createElement('div', {
@@ -1169,7 +1212,9 @@
                                     walk.photos && walk.photos.length > 0 &&
                                     React.createElement('div', { className: 'grid grid-cols-4 gap-1 mb-2' },
                                         walk.photos.map((url, i) => React.createElement('img', {
-                                            key: i, src: url, className: 'w-full h-16 object-cover rounded'
+                                            key: i, src: url,
+                                            className: 'w-full h-16 object-cover rounded cursor-pointer',
+                                            onClick: () => setViewingPhoto(url) // クリックで拡大表示
                                         }))
                                     ),
                                     walk.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-2 border-t pt-2' }, walk.memo),
@@ -1408,6 +1453,12 @@
 
                 showMap && React.createElement(MapView, {
                     positions: showMap, onClose: () => setShowMap(null)
+                }),
+
+                // 写真拡大ビューワー（viewingPhotoがセットされている場合のみ表示）
+                viewingPhoto && React.createElement(PhotoViewer, {
+                    src: viewingPhoto,
+                    onClose: () => setViewingPhoto(null)
                 })
             );
         }
