@@ -778,7 +778,7 @@ function App() {
       
       const stats = getStats(statsView);
       const earnedBadges = getEarnedBadges();
-      const recentWalks = walks.slice(0, 3);
+      const recentWalks = walks.slice(0, 20);
       const recentHealth = healthRecords.slice(0, 3);
       
       return React.createElement('div', { className: 'max-w-md mx-auto bg-white min-h-screen pb-20' },
@@ -843,7 +843,8 @@ function App() {
             )
           ),
           React.createElement('h3', { className: 'font-bold mb-2 text-lg' }, '最近'),
-          React.createElement('div', { className: 'space-y-3' },
+            // ここに max-h-96（高さ制限）と overflow-y-auto（スクロール）を追加
+          React.createElement('div', { className: 'space-y-3 max-h-96 overflow-y-auto pr-1' },
             recentWalks.length === 0 && recentHealth.length === 0 && 
               React.createElement('p', { className: 'text-center text-gray-500 mt-4' }, 
                 'まだ記録がありません'
