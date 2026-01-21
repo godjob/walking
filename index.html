@@ -18,7 +18,7 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        const APP_VERSION = 'v1.3.2';
+        const APP_VERSION = 'v1.3.3';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -43,6 +43,38 @@
             { id: 'distance50', name: '合計50km', icon: '🚀', condition: (c, d) => d >= 50000 },
             { id: 'distance100', name: '合計100km', icon: '🎖️', condition: (c, d) => d >= 100000 }
         ];
+
+        // 画像圧縮ユーティリティ関数
+        const compressImage = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 1200; // 最大幅を1200pxに制限
+                        const scaleSize = img.width > MAX_WIDTH ? MAX_WIDTH / img.width : 1;
+                        canvas.width = img.width * scaleSize;
+                        canvas.height = img.height * scaleSize;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                        // JPEG形式、品質0.7（70%）で圧縮
+                        canvas.toBlob((blob) => {
+                            if (blob) {
+                                resolve(blob);
+                            } else {
+                                reject(new Error('Image compression failed'));
+                            }
+                        }, 'image/jpeg', 0.7);
+                    };
+                    img.onerror = (error) => reject(error);
+                };
+                reader.onerror = (error) => reject(error);
+            });
+        };
 
         function getMonday(d) {
             const date = new Date(d);
@@ -146,11 +178,13 @@
 
                 setUploading(true);
                 try {
-                    // 並列アップロード処理
+                    // 画像圧縮とアップロード処理
                     const uploadPromises = files.map(async (file) => {
+                        const compressedBlob = await compressImage(file);
                         const randomId = Math.random().toString(36).substring(7);
-                        const ref = storage.ref(`walks/${Date.now()}_${randomId}_${file.name}`);
-                        await ref.put(file);
+                        const fileName = file.name.split('.')[0] + '.jpg'; // JPEGとして保存
+                        const ref = storage.ref(`walks/${Date.now()}_${randomId}_${fileName}`);
+                        await ref.put(compressedBlob);
                         return await ref.getDownloadURL();
                     });
 
@@ -614,11 +648,13 @@
 
                 setUploadingPhotos(true);
                 try {
-                    // 並列アップロード処理（Promise.all）
+                    // 画像圧縮と並列アップロード処理
                     const uploadPromises = files.map(async (file) => {
+                        const compressedBlob = await compressImage(file);
                         const randomId = Math.random().toString(36).substring(7);
-                        const storageRef = storage.ref(`walks/${Date.now()}_${randomId}_${file.name}`);
-                        await storageRef.put(file);
+                        const fileName = file.name.split('.')[0] + '.jpg'; // JPEGとして保存
+                        const storageRef = storage.ref(`walks/${Date.now()}_${randomId}_${fileName}`);
+                        await storageRef.put(compressedBlob);
                         return await storageRef.getDownloadURL();
                     });
 
