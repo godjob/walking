@@ -18,7 +18,7 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        const APP_VERSION = 'v1.3.1';
+        const APP_VERSION = 'v1.3.2';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -146,13 +146,15 @@
 
                 setUploading(true);
                 try {
-                    const newUrls = [];
-                    for (const file of files) {
-                        const ref = storage.ref(`walks/${Date.now()}_${file.name}`);
+                    // 並列アップロード処理
+                    const uploadPromises = files.map(async (file) => {
+                        const randomId = Math.random().toString(36).substring(7);
+                        const ref = storage.ref(`walks/${Date.now()}_${randomId}_${file.name}`);
                         await ref.put(file);
-                        const url = await ref.getDownloadURL();
-                        newUrls.push(url);
-                    }
+                        return await ref.getDownloadURL();
+                    });
+
+                    const newUrls = await Promise.all(uploadPromises);
                     setFormData(prev => ({ ...prev, photos: [...prev.photos, ...newUrls] }));
                 } catch (err) {
                     alert('アップロードに失敗しました: ' + err);
@@ -602,21 +604,28 @@
 
             const handlePhotoUpload = async (e) => {
                 const files = Array.from(e.target.files);
+                if (files.length === 0) return;
+
                 if (photos.length + files.length > 4) {
                     alert('写真は最大4枚までです');
+                    e.target.value = ''; // リセット
                     return;
                 }
+
                 setUploadingPhotos(true);
                 try {
-                    const uploadedUrls = [];
-                    for (const file of files) {
-                        const storageRef = storage.ref(`walks/${Date.now()}_${file.name}`);
+                    // 並列アップロード処理（Promise.all）
+                    const uploadPromises = files.map(async (file) => {
+                        const randomId = Math.random().toString(36).substring(7);
+                        const storageRef = storage.ref(`walks/${Date.now()}_${randomId}_${file.name}`);
                         await storageRef.put(file);
-                        const url = await storageRef.getDownloadURL();
-                        uploadedUrls.push(url);
-                    }
+                        return await storageRef.getDownloadURL();
+                    });
+
+                    const uploadedUrls = await Promise.all(uploadPromises);
                     setPhotos(prev => [...prev, ...uploadedUrls]);
                 } catch (error) {
+                    console.error(error);
                     alert('アップロード中にエラーが発生しました: ' + error.message);
                 } finally {
                     setUploadingPhotos(false);
