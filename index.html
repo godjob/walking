@@ -18,7 +18,7 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        const APP_VERSION = 'v1.5.3';
+        const APP_VERSION = 'v1.6.0';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -368,7 +368,7 @@
                 return labels[value];
             };
 
-            // 餌の残量ラベル
+            // ご飯の残量ラベル
             const getFoodAmountLabel = (value) => {
                 const labels = {
                     1: '空っぽ',
@@ -386,7 +386,7 @@
                     (type === 'hospital' ? '🏥 病院記録' :
                         type === 'grooming' ? '✂️ 散髪記録' :
                             type === 'bath' ? '🛁 入浴記録' :
-                                type === 'food' ? '🥣 餌（ごはん）' :
+                                type === 'food' ? '🥣 ご飯' :
                                     type === 'excretion' ? '💩 排泄記録' : '💊 薬記録')
                 ),
                 React.createElement('div', null,
@@ -975,6 +975,12 @@
                 const filteredWalks = period === 'all' ? walks : walks.filter(w => w.startTime >= startDate);
                 const totalDistance = filteredWalks.reduce((sum, w) => sum + (w.distance || 0), 0);
                 const totalDuration = filteredWalks.reduce((sum, w) => sum + (w.duration || 0), 0);
+
+                // 追加: 健康記録の集計
+                const filteredHealth = period === 'all' ? healthRecords : healthRecords.filter(r => r.date >= startDate);
+                const mealCount = filteredHealth.filter(r => r.type === 'food').length;
+                const pooCount = filteredHealth.filter(r => r.type === 'excretion').length;
+
                 const walkerStats = {};
                 filteredWalks.forEach(w => {
                     const walkerList = Array.isArray(w.walkers) ? w.walkers : [w.walkers];
@@ -991,6 +997,8 @@
                     count: filteredWalks.length,
                     totalDistance,
                     totalDuration,
+                    mealCount,
+                    pooCount,
                     avgDuration: filteredWalks.length > 0 ? totalDuration / filteredWalks.length : 0,
                     walkerStats
                 };
@@ -1066,24 +1074,26 @@
                         React.createElement('h2', { className: 'text-xl font-bold mb-3' },
                             '📊 ' + getPeriodLabel('week')
                         ),
-                        React.createElement('div', { className: 'grid grid-cols-3 gap-2' },
-                            React.createElement('div', { className: 'bg-white p-3 rounded text-center' },
-                                React.createElement('p', { className: 'text-sm text-gray-600' }, '散歩回数'),
-                                React.createElement('p', { className: 'text-2xl font-bold text-blue-600' },
-                                    getStats('week').count + '回'
-                                )
+                        React.createElement('div', { className: 'grid grid-cols-5 gap-1' },
+                            React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
+                                React.createElement('p', { className: 'text-[10px] text-gray-600' }, '散歩'),
+                                React.createElement('p', { className: 'text-lg font-bold text-blue-600' }, getStats('week').count)
                             ),
-                            React.createElement('div', { className: 'bg-white p-3 rounded text-center' },
-                                React.createElement('p', { className: 'text-sm text-gray-600' }, '合計距離'),
-                                React.createElement('p', { className: 'text-2xl font-bold text-green-600' },
-                                    (getStats('week').totalDistance / 1000).toFixed(1) + 'km'
-                                )
+                            React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
+                                React.createElement('p', { className: 'text-[10px] text-gray-600' }, '距離'),
+                                React.createElement('p', { className: 'text-lg font-bold text-green-600' }, (getStats('week').totalDistance / 1000).toFixed(1))
                             ),
-                            React.createElement('div', { className: 'bg-white p-3 rounded text-center' },
-                                React.createElement('p', { className: 'text-sm text-gray-600' }, '合計時間'),
-                                React.createElement('p', { className: 'text-2xl font-bold text-purple-600' },
-                                    getStats('week').totalDuration + '分'
-                                )
+                            React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
+                                React.createElement('p', { className: 'text-[10px] text-gray-600' }, '時間'),
+                                React.createElement('p', { className: 'text-lg font-bold text-purple-600' }, getStats('week').totalDuration)
+                            ),
+                            React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
+                                React.createElement('p', { className: 'text-[10px] text-gray-600' }, 'ご飯'),
+                                React.createElement('p', { className: 'text-lg font-bold text-orange-600' }, getStats('week').mealCount)
+                            ),
+                            React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
+                                React.createElement('p', { className: 'text-[10px] text-gray-600' }, '排泄'),
+                                React.createElement('p', { className: 'text-lg font-bold text-yellow-600' }, getStats('week').pooCount)
                             )
                         )
                     ),
@@ -1156,9 +1166,9 @@
                                                     (item.type === 'hospital' ? '🏥 病院' :
                                                         item.type === 'grooming' ? '✂️ 散髪' :
                                                             item.type === 'bath' ? '🛁 入浴' :
-                                                                item.type === 'food' ? '🥣 餌' :
+                                                                item.type === 'food' ? '🥣 ご飯' :
                                                                     item.type === 'excretion' ? '💩 排泄' : '💊 薬') +
-                                                    (item.walker ? ' (' + item.walker + ')' : '')
+                                                    ' (' + item.walker + ')'
                                                 )
                                             ),
                                             // 右上（日時）
@@ -1362,7 +1372,7 @@
                             React.createElement('button', {
                                 onClick: () => initHealthForm('food', null),
                                 className: 'bg-orange-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
-                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '🥣'), React.createElement('span', { className: 'text-xs font-bold' }, '餌')),
+                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '🥣'), React.createElement('span', { className: 'text-xs font-bold' }, 'ご飯')),
                             React.createElement('button', {
                                 onClick: () => initHealthForm('medicine', null),
                                 className: 'bg-green-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
@@ -1389,13 +1399,13 @@
                                 },
                                     React.createElement('div', { className: 'flex justify-between items-start' },
                                         React.createElement('div', { className: 'flex-1' },
-                                            React.createElement('p', { className: 'font-bold text-lg' }, // 太字・サイズアップ
+                                            React.createElement('p', { className: 'font-bold text-lg' },
                                                 (record.type === 'hospital' ? '🏥 病院' :
                                                     record.type === 'grooming' ? '✂️ 散髪' :
                                                         record.type === 'bath' ? '🛁 入浴' :
-                                                            record.type === 'food' ? '🥣 餌' :
+                                                            record.type === 'food' ? '🥣 ご飯' :
                                                                 record.type === 'excretion' ? '💩 排泄' : '💊 薬') +
-                                                (record.walker ? ' (' + record.walker + ')' : '')
+                                                ' (' + record.walker + ')'
                                             ),
                                             // 詳細情報
                                             React.createElement('div', { className: 'mt-1' },
@@ -1446,13 +1456,27 @@
                     React.createElement('div', { className: 'space-y-4' },
                         React.createElement('div', { className: 'bg-gradient-to-r from-blue-100 to-purple-100 p-4 rounded-lg shadow-sm border border-blue-200' },
                             React.createElement('h3', { className: 'font-bold mb-2' }, '📊 ' + getPeriodLabel(statsView)),
-                            React.createElement('div', { className: 'grid grid-cols-2 gap-3' },
-                                [{ l: '散歩回数', v: stats.count + '回', c: 'text-blue-600' }, { l: '合計距離', v: (stats.totalDistance / 1000).toFixed(1) + 'km', c: 'text-green-600' },
-                                { l: '合計時間', v: stats.totalDuration + '分', c: 'text-purple-600' }, { l: '平均時間', v: Math.round(stats.avgDuration) + '分', c: 'text-orange-600' }]
-                                    .map((s, i) => React.createElement('div', { key: i, className: 'bg-white p-3 rounded shadow-sm' },
-                                        React.createElement('p', { className: 'text-xs text-gray-500 mb-1' }, s.l),
-                                        React.createElement('p', { className: 'text-xl font-bold ' + s.c }, s.v)
-                                    ))
+                            React.createElement('div', { className: 'grid grid-cols-5 gap-1' },
+                                React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
+                                    React.createElement('p', { className: 'text-[10px] text-gray-600' }, '散歩'),
+                                    React.createElement('p', { className: 'text-lg font-bold text-blue-600' }, getStats(statsView).count)
+                                ),
+                                React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
+                                    React.createElement('p', { className: 'text-[10px] text-gray-600' }, '距離'),
+                                    React.createElement('p', { className: 'text-lg font-bold text-green-600' }, (getStats(statsView).totalDistance / 1000).toFixed(1))
+                                ),
+                                React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
+                                    React.createElement('p', { className: 'text-[10px] text-gray-600' }, '時間'),
+                                    React.createElement('p', { className: 'text-lg font-bold text-purple-600' }, getStats(statsView).totalDuration)
+                                ),
+                                React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
+                                    React.createElement('p', { className: 'text-[10px] text-gray-600' }, 'ご飯'),
+                                    React.createElement('p', { className: 'text-lg font-bold text-orange-600' }, getStats(statsView).mealCount)
+                                ),
+                                React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
+                                    React.createElement('p', { className: 'text-[10px] text-gray-600' }, '排泄'),
+                                    React.createElement('p', { className: 'text-lg font-bold text-yellow-600' }, getStats(statsView).pooCount)
+                                )
                             )
                         )
                     )
