@@ -18,7 +18,7 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        const APP_VERSION = 'v1.4.0';
+        const APP_VERSION = 'v1.5.0';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -567,7 +567,7 @@
             const [editingWalk, setEditingWalk] = useState(null);
             const [editingHealth, setEditingHealth] = useState(null);
             const [showMap, setShowMap] = useState(null);
-            const [viewingPhoto, setViewingPhoto] = useState(null); // 写真ビューワー用State
+            const [viewingPhoto, setViewingPhoto] = useState(null);
             const [now, setNow] = useState(new Date());
             const stationaryTimeRef = useRef(0);
             const lastPositionRef = useRef(null);
@@ -638,7 +638,7 @@
                     medicineType: record?.medicineType || '',
                     isVaccine: record?.isVaccine || false,
                     pooFirmness: record?.pooFirmness || 3,
-                    foodAmount: record?.foodAmount || 3, // 餌の残量初期値
+                    foodAmount: record?.foodAmount || 3,
                     memo: record?.memo || ''
                 };
                 setHealthFormData(initialData);
@@ -708,20 +708,19 @@
 
                 if (photos.length + files.length > 4) {
                     alert('写真は最大4枚までです');
-                    e.target.value = ''; // リセット
+                    e.target.value = '';
                     return;
                 }
 
                 setUploadingPhotos(true);
                 try {
-                    // 画像圧縮と並列アップロード処理
                     const uploadPromises = files.map(async (file) => {
                         const compressedBlob = await compressImage(file);
                         const randomId = Math.random().toString(36).substring(7);
-                        const fileName = file.name.split('.')[0] + '.jpg'; // JPEGとして保存
-                        const storageRef = storage.ref(`walks/${Date.now()}_${randomId}_${fileName}`);
-                        await storageRef.put(compressedBlob);
-                        return await storageRef.getDownloadURL();
+                        const fileName = file.name.split('.')[0] + '.jpg';
+                        const ref = storage.ref(`walks/${Date.now()}_${randomId}_${fileName}`);
+                        await ref.put(compressedBlob);
+                        return await ref.getDownloadURL();
                     });
 
                     const uploadedUrls = await Promise.all(uploadPromises);
@@ -1043,7 +1042,7 @@
                     React.createElement('button', {
                         onClick: () => handleTabChange('health'),
                         className: `flex-shrink-0 px-4 py-3 ${activeTab === 'health' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
-                    }, '健康管理'),
+                    }, 'お世話'),
                     React.createElement('button', {
                         onClick: () => handleTabChange('stats'),
                         className: `flex-shrink-0 px-4 py-3 ${activeTab === 'stats' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`
@@ -1108,41 +1107,33 @@
                                         React.createElement('div', {
                                             className: 'flex justify-between items-start mb-2'
                                         },
-                                            // 左側コンテナ
-                                            React.createElement('div', null,
-                                                // 1. タイトル
-                                                React.createElement('p', { className: 'font-medium' }, '🚶 散歩'),
-                                                // 2. 日時・時間・距離
-                                                React.createElement('div', { className: 'text-xs text-gray-500 mb-1' },
-                                                    formatDate(item.startTime) + ' ⏱️' + item.duration + '分 📍' + (item.distance / 1000).toFixed(2) + 'km'
+                                            React.createElement('div', { className: 'flex-1' },
+                                                React.createElement('p', { className: 'font-medium text-lg' },
+                                                    '🚶 散歩 (' + (Array.isArray(item.walkers) ? item.walkers.join(', ') : item.walkers) + ')'
                                                 ),
-                                                // 3. メモ（新規追加・時間とおしっこの間に配置）
-                                                item.memo && React.createElement('div', { className: 'text-sm text-gray-600 mb-1 bg-gray-50 p-1 rounded' }, item.memo),
-                                                // 4. アイコン群
-                                                React.createElement('div', { className: 'flex items-center gap-2' },
+                                                React.createElement('div', { className: 'flex items-center gap-2 mt-1' },
                                                     React.createElement('span', { className: 'text-xl' }, '🐕'),
                                                     React.createElement('div', { className: 'flex gap-1' },
                                                         item.pee && React.createElement('span', { className: 'text-3xl' }, '💧'),
                                                         item.poo && React.createElement('span', { className: 'text-3xl' }, '💩'),
                                                         item.water && React.createElement('span', { className: 'text-3xl' }, '🥤')
                                                     )
+                                                ),
+                                                item.memo && React.createElement('div', { className: 'text-sm text-gray-600 mt-1 bg-gray-50 p-1 rounded' }, item.memo),
+                                                item.photos && item.photos.length > 0 &&
+                                                React.createElement('div', { className: 'flex gap-1 mt-2 overflow-x-auto' },
+                                                    item.photos.map((url, i) => React.createElement('img', {
+                                                        key: i, src: url,
+                                                        className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200',
+                                                        onClick: () => setViewingPhoto(url)
+                                                    }))
                                                 )
                                             ),
-                                            // 右側：名前
-                                            React.createElement('div', { className: 'text-right pl-2' },
-                                                React.createElement('div', { className: 'text-sm text-gray-800' },
-                                                    Array.isArray(item.walkers) ? item.walkers.join(', ') : item.walkers
+                                            React.createElement('div', { className: 'text-right flex flex-col justify-between h-full pl-2' },
+                                                React.createElement('div', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' },
+                                                    '⏱️' + item.duration + '分 📍' + (item.distance / 1000).toFixed(2) + 'km ' + formatDate(item.startTime)
                                                 )
                                             )
-                                        ),
-                                        // サムネイル表示
-                                        item.photos && item.photos.length > 0 &&
-                                        React.createElement('div', { className: 'flex gap-1 mt-2 overflow-x-auto' },
-                                            item.photos.map((url, i) => React.createElement('img', {
-                                                key: i, src: url,
-                                                className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200',
-                                                onClick: () => setViewingPhoto(url)
-                                            }))
                                         )
                                     ) :
                                     React.createElement('div', {
@@ -1150,17 +1141,14 @@
                                         className: 'border rounded-lg p-3 bg-white shadow-sm'
                                     },
                                         React.createElement('div', { className: 'flex justify-between items-start' },
-                                            React.createElement('div', null,
+                                            React.createElement('div', { className: 'flex-1' },
                                                 React.createElement('p', { className: 'font-medium' },
                                                     (item.type === 'hospital' ? '🏥 病院' :
                                                         item.type === 'grooming' ? '✂️ 散髪' :
                                                             item.type === 'bath' ? '🛁 入浴' :
                                                                 item.type === 'food' ? '🥣 餌' :
                                                                     item.type === 'excretion' ? '💩 排泄' : '💊 薬') +
-                                                    (item.walker ? ' (担当: ' + item.walker + ')' : '')
-                                                ),
-                                                React.createElement('p', { className: 'text-xs text-gray-500 mb-1' },
-                                                    (item.type === 'excretion' || item.type === 'hospital' || item.type === 'food') ? formatDate(item.date) : formatDateOnly(item.date)
+                                                    (item.walker ? ' (' + item.walker + ')' : '')
                                                 ),
                                                 item.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + item.hospitalName),
                                                 item.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + item.medicineType),
@@ -1170,15 +1158,10 @@
                                                 React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][item.foodAmount] || '普通') + ` (${item.foodAmount}/5)`),
                                                 item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
                                             ),
-                                            React.createElement('div', { className: 'flex flex-col gap-2' },
-                                                React.createElement('button', {
-                                                    onClick: () => initHealthForm(item.type, item),
-                                                    className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded'
-                                                }, '編集'),
-                                                React.createElement('button', {
-                                                    onClick: () => deleteHealthRecord(item.id),
-                                                    className: 'text-red-500 text-xs px-2 py-1'
-                                                }, '削除')
+                                            React.createElement('div', { className: 'text-right' },
+                                                React.createElement('div', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' },
+                                                    (item.type === 'excretion' || item.type === 'hospital' || item.type === 'food') ? formatDate(item.date) : formatDateOnly(item.date)
+                                                )
                                             )
                                         )
                                     )
@@ -1215,7 +1198,7 @@
                             className: 'w-full bg-green-500 text-white py-4 rounded-lg text-xl font-bold hover:bg-green-600 shadow-md transition-all'
                         }, '🚶 散歩開始'),
                         React.createElement('hr', { className: 'my-6' }),
-                        React.createElement('h3', { className: 'font-bold mb-3' }, '散歩履歴'),
+                        React.createElement('h3', { className: 'font-bold mb-3' }, '散歩したよ'),
                         React.createElement('div', { className: 'space-y-3' },
                             walks.length === 0 ?
                                 React.createElement('p', { className: 'text-center text-gray-500 mt-4' }, 'まだ記録がありません') :
@@ -1226,54 +1209,48 @@
                                     React.createElement('div', {
                                         className: 'flex justify-between items-start mb-2'
                                     },
-                                        // 左側コンテナ
-                                        React.createElement('div', null,
-                                            // 1. タイトル
-                                            React.createElement('p', { className: 'font-medium' }, '🚶 散歩'),
-                                            // 2. 日時・時間・距離
-                                            React.createElement('div', { className: 'text-xs text-gray-500 mb-1' },
-                                                formatDate(walk.startTime) + ' ⏱️' + walk.duration + '分 📍' + (walk.distance / 1000).toFixed(2) + 'km'
+                                        React.createElement('div', { className: 'flex-1' },
+                                            React.createElement('p', { className: 'font-medium text-lg' },
+                                                '🚶 散歩 (' + (Array.isArray(walk.walkers) ? walk.walkers.join(', ') : (walk.walkers || walk.walker || 'undefined')) + ')'
                                             ),
-                                            // 3. アイコン群
-                                            React.createElement('div', { className: 'flex items-center gap-2' },
+                                            React.createElement('div', { className: 'flex items-center gap-2 mt-1' },
                                                 React.createElement('span', { className: 'text-xl' }, '🐕'),
                                                 React.createElement('div', { className: 'flex gap-1' },
                                                     walk.pee && React.createElement('span', { className: 'text-3xl' }, '💧'),
                                                     walk.poo && React.createElement('span', { className: 'text-3xl' }, '💩'),
                                                     walk.water && React.createElement('span', { className: 'text-3xl' }, '🥤')
                                                 )
+                                            ),
+                                            walk.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-2 border-t pt-2' }, walk.memo),
+                                            walk.photos && walk.photos.length > 0 &&
+                                            React.createElement('div', { className: 'grid grid-cols-4 gap-1 mt-2' },
+                                                walk.photos.map((url, i) => React.createElement('img', {
+                                                    key: i, src: url,
+                                                    className: 'w-full h-16 object-cover rounded cursor-pointer',
+                                                    onClick: () => setViewingPhoto(url)
+                                                }))
                                             )
                                         ),
-                                        // 右側：名前
-                                        React.createElement('div', { className: 'text-right pl-2' },
-                                            React.createElement('div', { className: 'text-sm text-gray-800' },
-                                                Array.isArray(walk.walkers) ? walk.walkers.join(', ') : (walk.walkers || walk.walker || 'undefined')
+                                        React.createElement('div', { className: 'text-right flex flex-col justify-between items-end gap-2' },
+                                            React.createElement('div', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' },
+                                                '⏱️' + walk.duration + '分 📍' + (walk.distance / 1000).toFixed(2) + 'km ' + formatDate(walk.startTime)
+                                            ),
+                                            React.createElement('div', { className: 'flex gap-2' },
+                                                walk.positions && walk.positions.length > 0 &&
+                                                React.createElement('button', {
+                                                    onClick: () => setShowMap(walk.positions),
+                                                    className: 'text-xs bg-blue-500 text-white px-3 py-1 rounded'
+                                                }, '🗺️ 地図'),
+                                                React.createElement('button', {
+                                                    onClick: () => setEditingWalk(walk),
+                                                    className: 'text-xs bg-gray-500 text-white px-3 py-1 rounded'
+                                                }, '✏️ 編集'),
+                                                React.createElement('button', {
+                                                    onClick: () => deleteWalk(walk.id),
+                                                    className: 'text-xs bg-red-500 text-white px-3 py-1 rounded'
+                                                }, '🗑️ 削除')
                                             )
                                         )
-                                    ),
-                                    walk.photos && walk.photos.length > 0 &&
-                                    React.createElement('div', { className: 'grid grid-cols-4 gap-1 mb-2' },
-                                        walk.photos.map((url, i) => React.createElement('img', {
-                                            key: i, src: url,
-                                            className: 'w-full h-16 object-cover rounded cursor-pointer',
-                                            onClick: () => setViewingPhoto(url)
-                                        }))
-                                    ),
-                                    walk.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-2 border-t pt-2' }, walk.memo),
-                                    React.createElement('div', { className: 'flex gap-2 mt-2' },
-                                        walk.positions && walk.positions.length > 0 &&
-                                        React.createElement('button', {
-                                            onClick: () => setShowMap(walk.positions),
-                                            className: 'text-xs bg-blue-500 text-white px-3 py-1 rounded'
-                                        }, '🗺️ 地図'),
-                                        React.createElement('button', {
-                                            onClick: () => setEditingWalk(walk),
-                                            className: 'text-xs bg-gray-500 text-white px-3 py-1 rounded'
-                                        }, '✏️ 編集'),
-                                        React.createElement('button', {
-                                            onClick: () => deleteWalk(walk.id),
-                                            className: 'text-xs bg-red-500 text-white px-3 py-1 rounded'
-                                        }, '🗑️ 削除')
                                     )
                                 ))
                         )
@@ -1347,31 +1324,31 @@
                     !showHealthForm ? React.createElement('div', null,
                         React.createElement('div', { className: 'grid grid-cols-3 gap-2 mb-6' },
                             React.createElement('button', {
-                                onClick: () => initHealthForm('hospital', null),
-                                className: 'bg-red-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
-                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '🏥'), React.createElement('span', { className: 'text-xs font-bold' }, '病院')),
-                            React.createElement('button', {
-                                onClick: () => initHealthForm('grooming', null),
-                                className: 'bg-pink-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
-                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '✂️'), React.createElement('span', { className: 'text-xs font-bold' }, '散髪')),
-                            React.createElement('button', {
-                                onClick: () => initHealthForm('bath', null),
-                                className: 'bg-blue-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
-                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '🛁'), React.createElement('span', { className: 'text-xs font-bold' }, '入浴')),
-                            React.createElement('button', {
-                                onClick: () => initHealthForm('medicine', null),
-                                className: 'bg-green-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
-                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '💊'), React.createElement('span', { className: 'text-xs font-bold' }, '薬')),
-                            React.createElement('button', {
                                 onClick: () => initHealthForm('excretion', null),
                                 className: 'bg-yellow-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
                             }, React.createElement('span', { className: 'text-2xl mb-1' }, '💩'), React.createElement('span', { className: 'text-xs font-bold' }, '排泄')),
                             React.createElement('button', {
                                 onClick: () => initHealthForm('food', null),
                                 className: 'bg-orange-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
-                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '🥣'), React.createElement('span', { className: 'text-xs font-bold' }, '餌'))
+                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '🥣'), React.createElement('span', { className: 'text-xs font-bold' }, '餌')),
+                            React.createElement('button', {
+                                onClick: () => initHealthForm('medicine', null),
+                                className: 'bg-green-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
+                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '💊'), React.createElement('span', { className: 'text-xs font-bold' }, '薬')),
+                            React.createElement('button', {
+                                onClick: () => initHealthForm('bath', null),
+                                className: 'bg-blue-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
+                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '🛁'), React.createElement('span', { className: 'text-xs font-bold' }, '入浴')),
+                            React.createElement('button', {
+                                onClick: () => initHealthForm('grooming', null),
+                                className: 'bg-pink-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
+                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '✂️'), React.createElement('span', { className: 'text-xs font-bold' }, '散髪')),
+                            React.createElement('button', {
+                                onClick: () => initHealthForm('hospital', null),
+                                className: 'bg-red-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
+                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '🏥'), React.createElement('span', { className: 'text-xs font-bold' }, '病院'))
                         ),
-                        React.createElement('h3', { className: 'font-bold mb-3' }, '健康履歴'),
+                        React.createElement('h3', { className: 'font-bold mb-3' }, 'お世話したよ'),
                         React.createElement('div', { className: 'space-y-3' },
                             healthRecords.length === 0 ?
                                 React.createElement('p', { className: 'text-center text-gray-500 mt-4' }, '記録がありません') :
@@ -1379,17 +1356,14 @@
                                     key: record.id, className: 'border rounded-lg p-3 bg-white shadow-sm'
                                 },
                                     React.createElement('div', { className: 'flex justify-between items-start' },
-                                        React.createElement('div', null,
+                                        React.createElement('div', { className: 'flex-1' },
                                             React.createElement('p', { className: 'font-medium' },
                                                 (record.type === 'hospital' ? '🏥 病院' :
                                                     record.type === 'grooming' ? '✂️ 散髪' :
                                                         record.type === 'bath' ? '🛁 入浴' :
                                                             record.type === 'food' ? '🥣 餌' :
                                                                 record.type === 'excretion' ? '💩 排泄' : '💊 薬') +
-                                                (record.walker ? ' (担当: ' + record.walker + ')' : '')
-                                            ),
-                                            React.createElement('p', { className: 'text-xs text-gray-500 mb-1' },
-                                                (record.type === 'excretion' || record.type === 'hospital' || record.type === 'food') ? formatDate(record.date) : formatDateOnly(record.date)
+                                                (record.walker ? ' (' + record.walker + ')' : '')
                                             ),
                                             record.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + record.hospitalName),
                                             record.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + record.medicineType),
@@ -1399,15 +1373,20 @@
                                             React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][record.foodAmount] || '普通') + ` (${record.foodAmount}/5)`),
                                             record.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, record.memo)
                                         ),
-                                        React.createElement('div', { className: 'flex flex-col gap-2' },
-                                            React.createElement('button', {
-                                                onClick: () => initHealthForm(record.type, record),
-                                                className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded'
-                                            }, '編集'),
-                                            React.createElement('button', {
-                                                onClick: () => deleteHealthRecord(record.id),
-                                                className: 'text-red-500 text-xs px-2 py-1'
-                                            }, '削除')
+                                        React.createElement('div', { className: 'text-right flex flex-col justify-between items-end gap-2' },
+                                            React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' },
+                                                (record.type === 'excretion' || record.type === 'hospital' || record.type === 'food') ? formatDate(record.date) : formatDateOnly(record.date)
+                                            ),
+                                            React.createElement('div', { className: 'flex gap-2' },
+                                                React.createElement('button', {
+                                                    onClick: () => initHealthForm(record.type, record),
+                                                    className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded'
+                                                }, '編集'),
+                                                React.createElement('button', {
+                                                    onClick: () => deleteHealthRecord(record.id),
+                                                    className: 'text-red-500 text-xs px-2 py-1'
+                                                }, '削除')
+                                            )
                                         )
                                     )
                                 ))
