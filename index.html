@@ -18,7 +18,7 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        const APP_VERSION = 'v1.6.1';
+        const APP_VERSION = 'v1.6.2';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -1309,17 +1309,6 @@
                                             item.type === 'food' && item.foodAmount &&
                                             React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][item.foodAmount] || '普通') + ` (${item.foodAmount}/5)`),
                                             item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
-                                        ),
-                                        // ボタン（右下）
-                                        React.createElement('div', { className: 'flex justify-end gap-2' },
-                                            React.createElement('button', {
-                                                onClick: () => initHealthForm(item.type, item),
-                                                className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded'
-                                            }, '編集'),
-                                            React.createElement('button', {
-                                                onClick: () => deleteHealthRecord(item.id),
-                                                className: 'text-red-500 text-xs px-2 py-1'
-                                            }, '削除')
                                         )
                                     )
                                 )
