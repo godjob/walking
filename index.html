@@ -18,7 +18,7 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        const APP_VERSION = 'v1.6.2';
+        const APP_VERSION = 'v1.6.3';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -1194,23 +1194,38 @@
                         React.createElement('div', { className: 'grid grid-cols-5 gap-1' },
                             React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
                                 React.createElement('p', { className: 'text-[10px] text-gray-600' }, '散歩'),
-                                React.createElement('p', { className: 'text-lg font-bold text-blue-600' }, getStats('week').count)
+                                React.createElement('p', { className: 'text-lg font-bold text-blue-600' },
+                                    getStats('week').count,
+                                    React.createElement('span', { className: 'text-xs text-gray-400 ml-0.5' }, '回')
+                                )
                             ),
                             React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
                                 React.createElement('p', { className: 'text-[10px] text-gray-600' }, '距離'),
-                                React.createElement('p', { className: 'text-lg font-bold text-green-600' }, (getStats('week').totalDistance / 1000).toFixed(1))
+                                React.createElement('p', { className: 'text-lg font-bold text-green-600' },
+                                    (getStats('week').totalDistance / 1000).toFixed(1),
+                                    React.createElement('span', { className: 'text-xs text-gray-400 ml-0.5' }, 'km')
+                                )
                             ),
                             React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
                                 React.createElement('p', { className: 'text-[10px] text-gray-600' }, '時間'),
-                                React.createElement('p', { className: 'text-lg font-bold text-purple-600' }, getStats('week').totalDuration)
+                                React.createElement('p', { className: 'text-lg font-bold text-purple-600' },
+                                    getStats('week').totalDuration,
+                                    React.createElement('span', { className: 'text-xs text-gray-400 ml-0.5' }, '分')
+                                )
                             ),
                             React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
                                 React.createElement('p', { className: 'text-[10px] text-gray-600' }, 'ご飯'),
-                                React.createElement('p', { className: 'text-lg font-bold text-orange-600' }, getStats('week').mealCount)
+                                React.createElement('p', { className: 'text-lg font-bold text-orange-600' },
+                                    getStats('week').mealCount,
+                                    React.createElement('span', { className: 'text-xs text-gray-400 ml-0.5' }, '回')
+                                )
                             ),
                             React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
                                 React.createElement('p', { className: 'text-[10px] text-gray-600' }, '排泄'),
-                                React.createElement('p', { className: 'text-lg font-bold text-yellow-600' }, getStats('week').pooCount)
+                                React.createElement('p', { className: 'text-lg font-bold text-yellow-600' },
+                                    getStats('week').pooCount,
+                                    React.createElement('span', { className: 'text-xs text-gray-400 ml-0.5' }, '回')
+                                )
                             )
                         )
                     ),
@@ -1584,23 +1599,38 @@
                             React.createElement('div', { className: 'grid grid-cols-5 gap-1' },
                                 React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
                                     React.createElement('p', { className: 'text-[10px] text-gray-600' }, '散歩'),
-                                    React.createElement('p', { className: 'text-lg font-bold text-blue-600' }, getStats(statsView).count)
+                                    React.createElement('p', { className: 'text-lg font-bold text-blue-600' },
+                                        getStats(statsView).count,
+                                        React.createElement('span', { className: 'text-xs text-gray-400 ml-0.5' }, '回')
+                                    )
                                 ),
                                 React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
                                     React.createElement('p', { className: 'text-[10px] text-gray-600' }, '距離'),
-                                    React.createElement('p', { className: 'text-lg font-bold text-green-600' }, (getStats(statsView).totalDistance / 1000).toFixed(1))
+                                    React.createElement('p', { className: 'text-lg font-bold text-green-600' },
+                                        (getStats(statsView).totalDistance / 1000).toFixed(1),
+                                        React.createElement('span', { className: 'text-xs text-gray-400 ml-0.5' }, 'km')
+                                    )
                                 ),
                                 React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
                                     React.createElement('p', { className: 'text-[10px] text-gray-600' }, '時間'),
-                                    React.createElement('p', { className: 'text-lg font-bold text-purple-600' }, getStats(statsView).totalDuration)
+                                    React.createElement('p', { className: 'text-lg font-bold text-purple-600' },
+                                        getStats(statsView).totalDuration,
+                                        React.createElement('span', { className: 'text-xs text-gray-400 ml-0.5' }, '分')
+                                    )
                                 ),
                                 React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
                                     React.createElement('p', { className: 'text-[10px] text-gray-600' }, 'ご飯'),
-                                    React.createElement('p', { className: 'text-lg font-bold text-orange-600' }, getStats(statsView).mealCount)
+                                    React.createElement('p', { className: 'text-lg font-bold text-orange-600' },
+                                        getStats(statsView).mealCount,
+                                        React.createElement('span', { className: 'text-xs text-gray-400 ml-0.5' }, '回')
+                                    )
                                 ),
                                 React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
                                     React.createElement('p', { className: 'text-[10px] text-gray-600' }, '排泄'),
-                                    React.createElement('p', { className: 'text-lg font-bold text-yellow-600' }, getStats(statsView).pooCount)
+                                    React.createElement('p', { className: 'text-lg font-bold text-yellow-600' },
+                                        getStats(statsView).pooCount,
+                                        React.createElement('span', { className: 'text-xs text-gray-400 ml-0.5' }, '回')
+                                    )
                                 )
                             )
                         )
