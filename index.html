@@ -995,7 +995,9 @@
                     water: currentWalk.water,
                     memo: currentWalk.memo,
                     photos: photos,
-                    positions: currentWalk.positions
+                    positions: currentWalk.positions,
+                    // 【追加】
+                    weather: currentWalk.weather || null
                 });
                 setCurrentWalk(null);
                 setIsWalking(false);
