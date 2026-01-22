@@ -44,6 +44,54 @@
             { id: 'distance100', name: '合計100km', icon: '🎖️', condition: (c, d) => d >= 100000 }
         ];
 
+        // OpenWeatherMap API設定
+        // 注意: 本番公開時はAPI管理画面でリファラー制限をかけてください
+        const WEATHER_API_KEY = "ba80598060806c2e4741766d34286357";
+
+        // 天気情報を取得する関数
+        const fetchWeatherData = async (lat, lng) => {
+            try {
+                if (!WEATHER_API_KEY) return null;
+
+                // units=metric で摂氏・メートル法を指定、lang=ja で日本語化
+                const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${WEATHER_API_KEY}&units=metric&lang=ja`;
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Weather API Error');
+
+                const data = await response.json();
+
+                return {
+                    condition: data.weather[0].description, // "晴れ" "厚い雲" など
+                    icon: data.weather[0].icon,             // アイコンコード
+                    temp: Math.round(data.main.temp * 10) / 10, // 小数点第1位まで
+                    wind: Math.round(data.wind.speed * 10) / 10 // 小数点第1位まで
+                };
+            } catch (error) {
+                console.warn("天気情報の取得に失敗しましたが、処理を継続します:", error);
+                return null; // 失敗時はnullを返し、記録を中断させない
+            }
+        };
+
+        // 天気アイコンコードを絵文字に変換するヘルパー関数（表示用）
+        const getWeatherEmoji = (iconCode) => {
+            if (!iconCode) return '🌤️';
+            // OpenWeatherMapのアイコンコードに基づく簡易マッピング
+            const map = {
+                '01': '☀️', // 快晴
+                '02': '⛅', // 晴れ時々曇り
+                '03': '☁️', // 曇り
+                '04': '☁️', // 厚い雲
+                '09': '🌧️', // 小雨
+                '10': '☔', // 雨
+                '11': '⚡', // 雷
+                '13': '⛄', // 雪
+                '50': '🌫️', // 霧
+            };
+            const code = iconCode.substring(0, 2);
+            return map[code] || '🌤️';
+        };
+
         // 画像圧縮ユーティリティ
         const compressImage = (file) => {
             return new Promise((resolve, reject) => {
@@ -770,6 +818,73 @@
                     alert('お使いのブラウザは位置情報に対応していません');
                     return;
                 }
+
+                // ベースとなる散歩オブジェクト
+                const walk = {
+                    walkers: selectedWalkers,
+                    startTime: new Date(),
+                    positions: [],
+                    pee: false,
+                    poo: false,
+                    water: false,
+                    memo: '',
+                    photos: [],
+                    weather: null // 初期値はnull
+                };
+
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => { // asyncを追加
+                        // 1. まず位置情報をセットしてUIを「散歩中」にする（ユーザーを待たせない）
+                        walk.positions.push({
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                            time: new Date(),
+                            accuracy: position.coords.accuracy
+                        });
+
+                        lastPositionRef.current = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                            time: Date.now()
+                        };
+                        stationaryTimeRef.current = 0;
+
+                        // State更新（散歩開始）
+                        setCurrentWalk(walk);
+                        setIsWalking(true);
+                        setPhotos([]);
+                        setNow(new Date());
+
+                        // 2. バックグラウンドで天気を取得し、currentWalkを更新する
+                        const weatherData = await fetchWeatherData(position.coords.latitude, position.coords.longitude);
+                        if (weatherData) {
+                            // 関数型更新を使って最新のstateにマージする
+                            setCurrentWalk(prev => {
+                                if (!prev) return null; // すでに終了していた場合などを考慮
+                                return { ...prev, weather: weatherData };
+                            });
+                        }
+                    },
+                    (error) => {
+                        alert('位置情報の取得に失敗しました。位置情報を許可してください。');
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            };
+/*
+            const startWalk = () => {
+                if (selectedWalkers.length === 0) {
+                    alert('散歩者を選択してください');
+                    return;
+                }
+                if (!navigator.geolocation) {
+                    alert('お使いのブラウザは位置情報に対応していません');
+                    return;
+                }
                 const walk = {
                     walkers: selectedWalkers,
                     startTime: new Date(),
@@ -809,7 +924,7 @@
                     }
                 );
             };
-
+*/
             useEffect(() => {
                 if (!isWalking || !currentWalk) return;
                 const interval = setInterval(() => {
@@ -1254,6 +1369,10 @@
                                         // 右側コンテナ（日付・時間・距離）
                                         React.createElement('div', { className: 'text-right flex flex-col items-end pl-2' },
                                             React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, formatDate(walk.startTime)),
+                                            // 【ここを追加】天気情報の表示
+                                            walk.weather && React.createElement('div', { className: 'text-xs text-gray-600 font-medium mb-1' },
+                                                `${getWeatherEmoji(walk.weather.icon)} ${walk.weather.temp}℃ 💨${walk.weather.wind}m`
+                                            ),
                                             React.createElement('div', { className: 'text-xs text-gray-500 font-bold' },
                                                 '⏱️' + walk.duration + '分 📍' + (walk.distance / 1000).toFixed(2) + 'km'
                                             )
