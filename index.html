@@ -18,7 +18,7 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        const APP_VERSION = 'v1.5.2';
+        const APP_VERSION = 'v1.5.3';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -937,13 +937,15 @@
             const formatDate = (date) => {
                 if (!date) return '';
                 const d = new Date(date);
-                return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+                const year = d.getFullYear().toString().slice(-2);
+                return `${year}/${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
             };
 
             const formatDateOnly = (date) => {
                 if (!date) return '';
                 const d = new Date(date);
-                return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+                const year = d.getFullYear().toString().slice(-2);
+                return `${year}/${d.getMonth() + 1}/${d.getDate()}`;
             };
 
             const formatTimer = (start) => {
@@ -1147,37 +1149,45 @@
                                         key: 'h-' + item.id,
                                         className: 'border rounded-lg p-3 bg-white shadow-sm'
                                     },
-                                        React.createElement('div', { className: 'flex justify-between items-start' },
+                                        React.createElement('div', { className: 'flex justify-between items-start mb-2' },
+                                            // 左上
                                             React.createElement('div', null,
-                                                React.createElement('p', { className: 'font-medium' },
+                                                React.createElement('p', { className: 'font-bold text-lg' },
                                                     (item.type === 'hospital' ? '🏥 病院' :
                                                         item.type === 'grooming' ? '✂️ 散髪' :
                                                             item.type === 'bath' ? '🛁 入浴' :
                                                                 item.type === 'food' ? '🥣 餌' :
                                                                     item.type === 'excretion' ? '💩 排泄' : '💊 薬') +
                                                     (item.walker ? ' (' + item.walker + ')' : '')
-                                                ),
-                                                React.createElement('p', { className: 'text-xs text-gray-500 mb-1' },
-                                                    (item.type === 'excretion' || item.type === 'hospital' || item.type === 'food') ? formatDate(item.date) : formatDateOnly(item.date)
-                                                ),
-                                                item.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + item.hospitalName),
-                                                item.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + item.medicineType),
-                                                item.type === 'excretion' && item.pooFirmness &&
-                                                React.createElement('p', { className: 'text-sm' }, '硬さ: ' + getFirmnessEmoji(item.pooFirmness)),
-                                                item.type === 'food' && item.foodAmount &&
-                                                React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][item.foodAmount] || '普通') + ` (${item.foodAmount}/5)`),
-                                                item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
+                                                )
                                             ),
-                                            React.createElement('div', { className: 'flex flex-col gap-2' },
-                                                React.createElement('button', {
-                                                    onClick: () => initHealthForm(item.type, item),
-                                                    className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded'
-                                                }, '編集'),
-                                                React.createElement('button', {
-                                                    onClick: () => deleteHealthRecord(item.id),
-                                                    className: 'text-red-500 text-xs px-2 py-1'
-                                                }, '削除')
+                                            // 右上（日時）
+                                            React.createElement('div', { className: 'text-right' },
+                                                React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' },
+                                                    (item.type === 'excretion' || item.type === 'hospital' || item.type === 'food') ? formatDate(item.date) : formatDateOnly(item.date)
+                                                )
                                             )
+                                        ),
+                                        // 詳細情報
+                                        React.createElement('div', { className: 'mb-2' },
+                                            item.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + item.hospitalName),
+                                            item.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + item.medicineType),
+                                            item.type === 'excretion' && item.pooFirmness &&
+                                            React.createElement('p', { className: 'text-sm' }, '硬さ: ' + getFirmnessEmoji(item.pooFirmness)),
+                                            item.type === 'food' && item.foodAmount &&
+                                            React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][item.foodAmount] || '普通') + ` (${item.foodAmount}/5)`),
+                                            item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
+                                        ),
+                                        // ボタン（右下）
+                                        React.createElement('div', { className: 'flex justify-end gap-2' },
+                                            React.createElement('button', {
+                                                onClick: () => initHealthForm(item.type, item),
+                                                className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded'
+                                            }, '編集'),
+                                            React.createElement('button', {
+                                                onClick: () => deleteHealthRecord(item.id),
+                                                className: 'text-red-500 text-xs px-2 py-1'
+                                            }, '削除')
                                         )
                                     )
                                 )
@@ -1346,31 +1356,31 @@
                     !showHealthForm ? React.createElement('div', null,
                         React.createElement('div', { className: 'grid grid-cols-3 gap-2 mb-6' },
                             React.createElement('button', {
-                                onClick: () => initHealthForm('hospital', null),
-                                className: 'bg-red-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
-                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '🏥'), React.createElement('span', { className: 'text-xs font-bold' }, '病院')),
-                            React.createElement('button', {
-                                onClick: () => initHealthForm('grooming', null),
-                                className: 'bg-pink-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
-                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '✂️'), React.createElement('span', { className: 'text-xs font-bold' }, '散髪')),
-                            React.createElement('button', {
-                                onClick: () => initHealthForm('bath', null),
-                                className: 'bg-blue-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
-                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '🛁'), React.createElement('span', { className: 'text-xs font-bold' }, '入浴')),
-                            React.createElement('button', {
-                                onClick: () => initHealthForm('medicine', null),
-                                className: 'bg-green-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
-                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '💊'), React.createElement('span', { className: 'text-xs font-bold' }, '薬')),
-                            React.createElement('button', {
                                 onClick: () => initHealthForm('excretion', null),
                                 className: 'bg-yellow-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
                             }, React.createElement('span', { className: 'text-2xl mb-1' }, '💩'), React.createElement('span', { className: 'text-xs font-bold' }, '排泄')),
                             React.createElement('button', {
                                 onClick: () => initHealthForm('food', null),
                                 className: 'bg-orange-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
-                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '🥣'), React.createElement('span', { className: 'text-xs font-bold' }, '餌'))
+                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '🥣'), React.createElement('span', { className: 'text-xs font-bold' }, '餌')),
+                            React.createElement('button', {
+                                onClick: () => initHealthForm('medicine', null),
+                                className: 'bg-green-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
+                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '💊'), React.createElement('span', { className: 'text-xs font-bold' }, '薬')),
+                            React.createElement('button', {
+                                onClick: () => initHealthForm('bath', null),
+                                className: 'bg-blue-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
+                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '🛁'), React.createElement('span', { className: 'text-xs font-bold' }, '入浴')),
+                            React.createElement('button', {
+                                onClick: () => initHealthForm('grooming', null),
+                                className: 'bg-pink-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
+                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '✂️'), React.createElement('span', { className: 'text-xs font-bold' }, '散髪')),
+                            React.createElement('button', {
+                                onClick: () => initHealthForm('hospital', null),
+                                className: 'bg-red-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm'
+                            }, React.createElement('span', { className: 'text-2xl mb-1' }, '🏥'), React.createElement('span', { className: 'text-xs font-bold' }, '病院'))
                         ),
-                        React.createElement('h3', { className: 'font-bold mb-3' }, '健康履歴'),
+                        React.createElement('h3', { className: 'font-bold mb-3' }, 'お世話したよ'),
                         React.createElement('div', { className: 'space-y-3' },
                             healthRecords.length === 0 ?
                                 React.createElement('p', { className: 'text-center text-gray-500 mt-4' }, '記録がありません') :
@@ -1378,35 +1388,40 @@
                                     key: record.id, className: 'border rounded-lg p-3 bg-white shadow-sm'
                                 },
                                     React.createElement('div', { className: 'flex justify-between items-start' },
-                                        React.createElement('div', null,
-                                            React.createElement('p', { className: 'font-medium' },
+                                        React.createElement('div', { className: 'flex-1' },
+                                            React.createElement('p', { className: 'font-bold text-lg' }, // 太字・サイズアップ
                                                 (record.type === 'hospital' ? '🏥 病院' :
                                                     record.type === 'grooming' ? '✂️ 散髪' :
                                                         record.type === 'bath' ? '🛁 入浴' :
                                                             record.type === 'food' ? '🥣 餌' :
                                                                 record.type === 'excretion' ? '💩 排泄' : '💊 薬') +
-                                                (record.walker ? ' (担当: ' + record.walker + ')' : '')
+                                                (record.walker ? ' (' + record.walker + ')' : '')
                                             ),
-                                            React.createElement('p', { className: 'text-xs text-gray-500 mb-1' },
+                                            // 詳細情報
+                                            React.createElement('div', { className: 'mt-1' },
+                                                record.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + record.hospitalName),
+                                                record.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + record.medicineType),
+                                                record.type === 'excretion' && record.pooFirmness &&
+                                                React.createElement('p', { className: 'text-sm' }, '硬さ: ' + getFirmnessEmoji(record.pooFirmness)),
+                                                record.type === 'food' && record.foodAmount &&
+                                                React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][record.foodAmount] || '普通') + ` (${record.foodAmount}/5)`),
+                                                record.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, record.memo)
+                                            )
+                                        ),
+                                        React.createElement('div', { className: 'text-right flex flex-col justify-between items-end gap-2' },
+                                            React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' },
                                                 (record.type === 'excretion' || record.type === 'hospital' || record.type === 'food') ? formatDate(record.date) : formatDateOnly(record.date)
                                             ),
-                                            record.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + record.hospitalName),
-                                            record.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + record.medicineType),
-                                            record.type === 'excretion' && record.pooFirmness &&
-                                            React.createElement('p', { className: 'text-sm' }, '硬さ: ' + getFirmnessEmoji(record.pooFirmness)),
-                                            record.type === 'food' && record.foodAmount &&
-                                            React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][record.foodAmount] || '普通') + ` (${record.foodAmount}/5)`),
-                                            record.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, record.memo)
-                                        ),
-                                        React.createElement('div', { className: 'flex flex-col gap-2' },
-                                            React.createElement('button', {
-                                                onClick: () => initHealthForm(record.type, record),
-                                                className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded'
-                                            }, '編集'),
-                                            React.createElement('button', {
-                                                onClick: () => deleteHealthRecord(record.id),
-                                                className: 'text-red-500 text-xs px-2 py-1'
-                                            }, '削除')
+                                            React.createElement('div', { className: 'flex gap-2' },
+                                                React.createElement('button', {
+                                                    onClick: () => initHealthForm(record.type, record),
+                                                    className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded'
+                                                }, '編集'),
+                                                React.createElement('button', {
+                                                    onClick: () => deleteHealthRecord(record.id),
+                                                    className: 'text-red-500 text-xs px-2 py-1'
+                                                }, '削除')
+                                            )
                                         )
                                     )
                                 ))
