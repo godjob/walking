@@ -85,7 +85,15 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
 
         // 日時・天気などの情報作成
         const dateObj = walk.startTime.toDate();
-        const dateStr = `${dateObj.getMonth() + 1}/${dateObj.getDate()} ${dateObj.getHours()}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+        // ★ここを変更：日本時間 (Asia/Tokyo) に変換する
+        const dateStr = dateObj.toLocaleString('ja-JP', {
+            timeZone: 'Asia/Tokyo',
+            month: 'numeric',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+
         const walkersStr = Array.isArray(walk.walkers) ? walk.walkers.join(', ') : walk.walkers;
 
         let weatherStr = '';
