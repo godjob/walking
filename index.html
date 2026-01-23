@@ -32,6 +32,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const storage = firebase.storage();
+        const functions = firebase.app().functions('asia-northeast1');
         const { useState, useEffect, useRef } = React;
 
         const badges = [
@@ -854,6 +855,11 @@
                         setIsWalking(true);
                         setPhotos([]);
                         setNow(new Date());
+
+                        const notifyWalkStart = functions.httpsCallable('notifyWalkStart');
+                        notifyWalkStart({ walkers: selectedWalkers })
+                            .then(() => console.log('LINE通知送信成功'))
+                            .catch(err => console.error('LINE通知送信失敗', err));
 
                         // 2. バックグラウンドで天気を取得し、currentWalkを更新する
                         const weatherData = await fetchWeatherData(position.coords.latitude, position.coords.longitude);
