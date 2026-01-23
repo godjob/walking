@@ -917,13 +917,15 @@
                                     ),
                                     React.createElement('div', null,
                                         walk.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-2 border-t pt-2' }, walk.memo),
+                                        // ★写真を先に表示
+                                        walk.photos && walk.photos.length > 0 && React.createElement('div', { className: 'grid grid-cols-4 gap-1 mt-3 mb-2' }, // mb-2を追加して少し隙間を空けました
+                                            walk.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'w-full h-16 object-cover rounded cursor-pointer', onClick: () => setViewingPhoto(url) }))
+                                        ),
+                                        // ★ボタンをその下に移動
                                         React.createElement('div', { className: 'flex justify-end gap-2 mt-2' },
                                             walk.positions && walk.positions.length > 0 && React.createElement('button', { onClick: () => setShowMap(walk.positions), className: 'p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg text-xl transition-colors', title: '地図を見る' }, '🗺️'),
                                             React.createElement('button', { onClick: () => setEditingWalk(walk), className: 'p-2 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg text-xl transition-colors', title: '編集' }, '✏️'),
                                             React.createElement('button', { onClick: () => deleteWalk(walk.id), className: 'p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-xl transition-colors', title: '削除' }, '🗑️')
-                                        ),
-                                        walk.photos && walk.photos.length > 0 && React.createElement('div', { className: 'grid grid-cols-4 gap-1 mt-3' },
-                                            walk.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'w-full h-16 object-cover rounded cursor-pointer', onClick: () => setViewingPhoto(url) }))
                                         )
                                     )
                                 ))
