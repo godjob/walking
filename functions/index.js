@@ -1,5 +1,5 @@
 /**
- * 福といっしょ LINE通知機能 Backend (v2.3.0)
+ * 福といっしょ LINE通知機能 Backend (v2.4.0)
  */
 require('dotenv').config();
 const functions = require('firebase-functions/v1');
@@ -62,7 +62,7 @@ exports.lineWebhook = functions.region('asia-northeast1').https.onRequest(async 
     }
 });
 
-// 2. 散歩開始通知 (アプリから呼び出し)
+// 2. 散歩開始通知
 exports.notifyWalkStart = functions.region('asia-northeast1').https.onCall(async (data, context) => {
     const walkers = data.walkers || [];
     const walkersText = walkers.length > 0 ? walkers.join('と') : '誰か';
@@ -74,7 +74,7 @@ exports.notifyWalkStart = functions.region('asia-northeast1').https.onCall(async
     return { success: true };
 });
 
-// 3. 散歩終了通知 (データ保存時に自動実行)
+// 3. 散歩終了通知
 exports.onWalkCreated = functions.region('asia-northeast1').firestore
     .document('walks/{walkId}')
     .onCreate(async (snapshot, context) => {
@@ -95,12 +95,16 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
             weatherStr = `\n天気: ${emoji} ${walk.weather.temp}℃ (風速${walk.weather.wind}m)`;
         }
 
-        // ★うんちの硬さ情報を追加
         const firmnessLabels = { 1: 'とてもやわらかい', 2: 'やわらかい', 3: '普通', 4: '硬め', 5: '硬い' };
         const firmnessStr = (walk.poo && walk.pooFirmness) ? ` (${firmnessLabels[walk.pooFirmness] || '普通'})` : '';
 
         const pooStr = walk.poo ? `あり💩${firmnessStr}` : 'なし';
         const peeStr = walk.pee ? 'あり💧' : 'なし';
+
+        // ★元気度情報の追加
+        const energyLabels = { 1: '絶不調 😫', 2: '不調 😓', 3: '普通 😐', 4: '元気 🙂', 5: '絶好調 😆' };
+        const energyStr = walk.energy ? `\n元気: ${energyLabels[walk.energy] || '普通'}` : '';
+
         const memoStr = walk.memo ? `\n\n📝 メモ:\n${walk.memo}` : '';
 
         const textContent = `🏁 散歩終了 (${dateStr})\n` +
@@ -108,6 +112,7 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
             `⏱️ 時間: ${walk.duration}分\n` +
             `📍 距離: ${(walk.distance / 1000).toFixed(2)}km` +
             weatherStr +
+            energyStr +
             `\n\n🚽 トイレ:\nうんち: ${pooStr} / おしっこ: ${peeStr}` +
             memoStr;
 
@@ -123,7 +128,7 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
         await broadcastToFamily(messages);
     });
 
-// 4. お世話記録通知 (新規・更新共通)
+// 4. お世話記録通知
 exports.onHealthWrite = functions.region('asia-northeast1').firestore
     .document('health/{healthId}')
     .onWrite(async (change, context) => {
@@ -165,6 +170,12 @@ exports.onHealthWrite = functions.region('asia-northeast1').firestore
             case 'bath':
                 title = '🛁 入浴';
                 detail = `${walker}が福をお風呂に入れました✨`;
+                break;
+
+            // ★ブラッシング通知追加
+            case 'brushing':
+                title = '✨ ブラッシング';
+                detail = `${walker}がブラッシングをしてふわふわになりました✨`;
                 break;
 
             case 'grooming':
