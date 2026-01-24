@@ -1,5 +1,5 @@
 /**
- * 福といっしょ LINE通知機能 Backend (v2.4.0)
+ * 福といっしょ LINE通知機能 Backend (v2.4.1)
  */
 require('dotenv').config();
 const functions = require('firebase-functions/v1');
@@ -15,6 +15,22 @@ const config = {
 };
 
 const client = new line.Client(config);
+
+// 日時フォーマット関数 (YY/MM/DD HH:mm) - JST
+function formatDateTime(timestamp) {
+    if (!timestamp) return '';
+    const dateObj = timestamp.toDate();
+    // JSTに変換してDateオブジェクトを作成
+    const d = new Date(dateObj.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
+
+    const yy = d.getFullYear().toString().slice(-2);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+
+    return `${yy}/${mm}/${dd} ${hh}:${min}`;
+}
 
 // 共通: 家族全員にメッセージを送る
 async function broadcastToFamily(messages) {
@@ -81,10 +97,8 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
         const walk = snapshot.data();
         const messages = [];
 
-        const dateObj = walk.startTime.toDate();
-        const dateStr = dateObj.toLocaleString('ja-JP', {
-            timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit'
-        });
+        // 日時フォーマット (YY/MM/DD HH:mm)
+        const dateStr = formatDateTime(walk.startTime);
         const walkersStr = Array.isArray(walk.walkers) ? walk.walkers.join(', ') : walk.walkers;
 
         let weatherStr = '';
@@ -100,14 +114,11 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
 
         const pooStr = walk.poo ? `あり💩${firmnessStr}` : 'なし';
         const peeStr = walk.pee ? 'あり💧' : 'なし';
-
-        // ★元気度情報の追加
         const energyLabels = { 1: '絶不調 😫', 2: '不調 😓', 3: '普通 😐', 4: '元気 🙂', 5: '絶好調 😆' };
         const energyStr = walk.energy ? `\n元気: ${energyLabels[walk.energy] || '普通'}` : '';
-
         const memoStr = walk.memo ? `\n\n📝 メモ:\n${walk.memo}` : '';
 
-        const textContent = `🏁 散歩終了 (${dateStr})\n` +
+        const textContent = `🏁 散歩終了\n${dateStr}\n\n` +
             `👤 担当: ${walkersStr}\n` +
             `⏱️ 時間: ${walk.duration}分\n` +
             `📍 距離: ${(walk.distance / 1000).toFixed(2)}km` +
@@ -138,6 +149,9 @@ exports.onHealthWrite = functions.region('asia-northeast1').firestore
 
         const isUpdate = change.before.exists;
         const actionTitle = isUpdate ? '(修正)' : '';
+
+        // 日時フォーマット
+        const dateStr = formatDateTime(newData.date);
 
         let title = '';
         let detail = '';
@@ -172,7 +186,6 @@ exports.onHealthWrite = functions.region('asia-northeast1').firestore
                 detail = `${walker}が福をお風呂に入れました✨`;
                 break;
 
-            // ★ブラッシング通知追加
             case 'brushing':
                 title = '✨ ブラッシング';
                 detail = `${walker}がブラッシングをしてふわふわになりました✨`;
@@ -195,8 +208,8 @@ exports.onHealthWrite = functions.region('asia-northeast1').firestore
                 detail = `${walker}がお世話をしました。`;
         }
 
-        const updateNote = isUpdate ? '\n\n(内容が修正されました)' : '';
-        const textContent = `${title} ${actionTitle}\n\n${detail}${memo}${updateNote}`;
+        // 「(内容が修正されました)」の行は削除
+        const textContent = `${title} ${actionTitle}\n${dateStr}\n\n${detail}${memo}`;
 
         const messages = [{ type: 'text', text: textContent }];
 
