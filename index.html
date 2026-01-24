@@ -31,7 +31,7 @@
     <div id="app"></div>
     <script>
         // ★バージョン更新 (パッチ)
-        const APP_VERSION = 'v2.5.2';
+        const APP_VERSION = 'v2.5.3';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -220,7 +220,6 @@
             return React.createElement('div', { className: 'w-full mb-2 bg-white/50 rounded-lg p-2' },
                 React.createElement('div', {
                     ref: scrollRef,
-                    // 高さは h-32 (128px) を維持
                     className: 'flex gap-2 overflow-x-auto no-scrollbar pb-2 items-end h-32',
                 },
                     dates.map((date, index) => {
@@ -249,7 +248,6 @@
                                 React.createElement('span', { className: 'text-[10px]' }, weekLabel)
                             ),
                             dayEvents.map((ev, i) =>
-                                // ★修正: text-sm (14px) に縮小し、mb-0.5 (2px) で高密度に積み上げ
                                 React.createElement('div', { key: i, className: 'text-sm leading-none mb-0.5' }, getIcon(ev.type))
                             )
                         );
@@ -399,7 +397,8 @@
             return React.createElement('div', {
                 className: 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'
             },
-                React.createElement('div', { className: 'bg-white rounded-lg w-full max-w-md max-h-screen overflow-y-auto' },
+                // ★修正: max-h-screen -> max-h-[85vh] (スマホでボタンが隠れるのを防止)
+                React.createElement('div', { className: 'bg-white rounded-lg w-full max-w-md max-h-[85vh] overflow-y-auto' },
                     React.createElement('div', { className: 'p-4' },
                         React.createElement('h3', { className: 'font-bold text-lg mb-4' }, '散歩記録を編集'),
                         React.createElement('div', { className: 'space-y-4' },
@@ -448,7 +447,7 @@
                                     onChange: (e) => setFormData({ ...formData, energy: parseInt(e.target.value) }),
                                     className: 'w-full'
                                 }),
-                                React.createElement('div', { className: 'flex justify-between text-[10px] text-gray-500' },
+                                React.createElement('div', { className: 'flex justify-between text-xs text-gray-500' },
                                     React.createElement('span', null, '絶不調'),
                                     React.createElement('span', null, '普通'),
                                     React.createElement('span', null, '絶好調')
@@ -694,13 +693,15 @@
                     React.createElement('label', { htmlFor: 'notify-check', className: 'text-sm font-bold text-gray-700' }, 'LINEで通知する')
                 ),
 
-                React.createElement('div', { className: 'flex gap-2' },
+                // ★修正: 画面下部に余白を追加 (mb-8)
+                React.createElement('div', { className: 'flex gap-2 mb-8' },
                     React.createElement('button', { onClick: handleSubmit, className: 'flex-1 bg-blue-500 text-white py-2 rounded font-bold' }, '保存'),
                     React.createElement('button', { onClick: onCancel, className: 'flex-1 bg-gray-300 py-2 rounded' }, 'キャンセル')
                 )
             );
         }
 
+        // ... (App, ReactDOM.render)
         function App() {
             const [activeTab, setActiveTab] = useState('home');
             const [isWalking, setIsWalking] = useState(false);
@@ -1332,7 +1333,6 @@
                     })
                 ),
 
-                // ... (以下 stats, badges, settings, footer, modal群は既存のまま)
                 activeTab === 'stats' && React.createElement('div', { className: 'p-4' },
                     React.createElement('div', { className: 'flex gap-2 mb-4 overflow-x-auto' },
                         ['week', 'month', 'year', 'all'].map(v => React.createElement('button', {
