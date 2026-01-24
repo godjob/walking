@@ -14,13 +14,24 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        /* スクロールバーを隠すためのCSS */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
 </head>
 
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        // ★バージョン更新
-        const APP_VERSION = 'v2.4.2';
+        // ★バージョン更新なし
+        const APP_VERSION = 'v2.5.0';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -35,7 +46,7 @@
         const db = firebase.firestore();
         const storage = firebase.storage();
         const functions = firebase.app().functions('asia-northeast1');
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useLayoutEffect } = React;
 
         const badges = [
             { id: 'first', name: '初めての散歩', icon: '🎉', condition: (c) => c >= 1 },
@@ -49,7 +60,6 @@
 
         const WEATHER_API_KEY = "ba80598060806c2e4741766d34286357";
 
-        // ヘルパー関数
         const getFirmnessLabel = (value) => {
             const labels = { 1: 'とてもやわらかい', 2: 'やわらかい', 3: '普通', 4: '硬め', 5: '硬い' };
             return labels[value] || '普通';
@@ -65,7 +75,6 @@
             return labels[value] + ` (${value}/5)`;
         };
 
-        // ★元気度ラベル
         const getEnergyLabel = (value) => {
             const labels = { 1: '絶不調 😫', 2: '不調 😓', 3: '普通 😐', 4: '元気 🙂', 5: '絶好調 😆' };
             return labels[value] || '普通 😐';
@@ -169,6 +178,85 @@
             }
         }
 
+        function CareHistoryChart({ walks, healthRecords }) {
+            const todayRef = useRef(null);
+            const scrollRef = useRef(null);
+
+            const dates = [];
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            for (let i = -14; i <= 2; i++) {
+                const d = new Date(today);
+                d.setDate(today.getDate() + i);
+                dates.push(d);
+            }
+
+            const allEvents = [
+                ...walks.map(w => ({ type: 'walk', date: new Date(w.startTime) })),
+                ...healthRecords.map(h => ({ type: h.type, date: new Date(h.date) }))
+            ];
+
+            const getIcon = (type) => {
+                const map = {
+                    'walk': '🚶',
+                    'excretion': '💩',
+                    'food': '🥣',
+                    'medicine': '💊',
+                    'bath': '🛁',
+                    'brushing': '✨',
+                    'grooming': '✂️',
+                    'hospital': '🏥'
+                };
+                return map[type] || '✨';
+            };
+
+            useEffect(() => {
+                if (todayRef.current) {
+                    todayRef.current.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
+                }
+            }, []);
+
+            return React.createElement('div', { className: 'w-full mb-2 bg-white/50 rounded-lg p-2' },
+                React.createElement('div', {
+                    ref: scrollRef,
+                    // ★高さを h-48 から h-32 (約アイコン6個分) に変更
+                    className: 'flex gap-2 overflow-x-auto no-scrollbar pb-2 items-end h-32',
+                },
+                    dates.map((date, index) => {
+                        const isToday = date.getTime() === today.getTime();
+                        const dateKey = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate();
+
+                        const dayEvents = allEvents.filter(e => {
+                            const eDate = new Date(e.date);
+                            return eDate.getFullYear() === date.getFullYear() &&
+                                eDate.getMonth() === date.getMonth() &&
+                                eDate.getDate() === date.getDate();
+                        }).sort((a, b) => a.date - b.date);
+
+                        const dayLabel = date.getDate();
+                        const weekLabel = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
+
+                        return React.createElement('div', {
+                            key: index,
+                            ref: isToday ? todayRef : null,
+                            className: 'flex flex-col-reverse items-center min-w-[32px] flex-shrink-0'
+                        },
+                            React.createElement('div', {
+                                className: `text-xs mt-1 text-center border-t border-gray-400 w-full pt-1 ${isToday ? 'font-bold text-blue-700' : 'text-gray-600'}`
+                            },
+                                React.createElement('span', { className: 'block text-sm leading-none' }, dayLabel),
+                                React.createElement('span', { className: 'text-[10px]' }, weekLabel)
+                            ),
+                            dayEvents.map((ev, i) =>
+                                React.createElement('div', { key: i, className: 'text-lg leading-none -mb-1' }, getIcon(ev.type))
+                            )
+                        );
+                    })
+                )
+            );
+        }
+
         function PhotoViewer({ src, onClose }) {
             const [scale, setScale] = useState(1);
             useEffect(() => {
@@ -248,7 +336,6 @@
                 endTime: walk.endTime ? toLocalISOString(walk.endTime) : '',
                 pee: walk.pee || false,
                 poo: walk.poo || false,
-                // 編集時にも元気度を扱えるようにする
                 energy: walk.energy || 3,
                 water: walk.water || false,
                 memo: walk.memo || '',
@@ -828,7 +915,6 @@
                 if (!navigator.geolocation) { alert('お使いのブラウザは位置情報に対応していません'); return; }
                 const walk = {
                     walkers: selectedWalkers, startTime: new Date(), positions: [],
-                    // ★元気度初期値
                     pee: false, poo: false, pooFirmness: 3, energy: 3, water: false, memo: '', photos: [], weather: null
                 };
                 navigator.geolocation.getCurrentPosition(
@@ -900,7 +986,7 @@
                     pee: currentWalk.pee,
                     poo: currentWalk.poo,
                     pooFirmness: currentWalk.poo ? currentWalk.pooFirmness : null,
-                    energy: currentWalk.energy, // ★元気度を保存
+                    energy: currentWalk.energy,
                     water: currentWalk.water,
                     memo: currentWalk.memo, photos: photos, positions: currentWalk.positions, weather: currentWalk.weather || null
                 });
@@ -1002,7 +1088,10 @@
 
                 activeTab === 'home' && React.createElement('div', { className: 'p-4' },
                     React.createElement('div', { className: 'bg-gradient-to-r from-blue-100 to-purple-100 p-4 rounded-lg mb-4 shadow-sm' },
-                        React.createElement('h2', { className: 'text-xl font-bold mb-3' }, '📊 ' + getPeriodLabel('week')),
+                        React.createElement(CareHistoryChart, { walks: walks, healthRecords: healthRecords }),
+
+                        React.createElement('h2', { className: 'text-sm font-bold mb-3 mt-4 text-gray-700' }, '📊 ' + getPeriodLabel('week')),
+
                         React.createElement('div', { className: 'grid grid-cols-5 gap-1' },
                             React.createElement('div', { className: 'bg-white p-2 rounded text-center' }, React.createElement('p', { className: 'text-[10px] text-gray-600' }, '散歩'), React.createElement('p', { className: 'text-lg font-bold text-blue-600' }, getStats('week').count, React.createElement('span', { className: 'text-xs text-gray-400 ml-0.5' }, '回'))),
                             React.createElement('div', { className: 'bg-white p-2 rounded text-center' }, React.createElement('p', { className: 'text-[10px] text-gray-600' }, '距離'), React.createElement('p', { className: 'text-lg font-bold text-green-600' }, (getStats('week').totalDistance / 1000).toFixed(1), React.createElement('span', { className: 'text-xs text-gray-400 ml-0.5' }, 'km'))),
@@ -1011,7 +1100,6 @@
                             React.createElement('div', { className: 'bg-white p-2 rounded text-center' }, React.createElement('p', { className: 'text-[10px] text-gray-600' }, '排泄'), React.createElement('p', { className: 'text-lg font-bold text-yellow-600' }, getStats('week').pooCount, React.createElement('span', { className: 'text-xs text-gray-400 ml-0.5' }, '回')))
                         )
                     ),
-                    // ★見出し変更: 最近の記録 -> 福のお世話
                     React.createElement('h3', { className: 'font-bold mb-2 text-lg flex items-center' }, React.createElement('span', { className: 'mr-2' }, '🕒'), '福のお世話'),
                     React.createElement('div', { className: 'space-y-3 max-h-96 overflow-y-auto pr-1' },
                         allRecords.length === 0 ? React.createElement('p', { className: 'text-center text-gray-500 mt-4' }, 'まだ記録がありません') :
@@ -1029,7 +1117,6 @@
                                         React.createElement('div', { className: 'text-right flex flex-col items-end pl-2' },
                                             React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, formatRelativeTime(item.startTime)),
                                             React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, '⏱️' + item.duration + '分 📍' + (item.distance / 1000).toFixed(2) + 'km'),
-                                            // ★元気度表示
                                             item.energy && React.createElement('div', { className: 'text-xs font-bold text-orange-500 mt-1' }, '元気: ' + getEnergyLabel(item.energy)),
                                             item.weather && React.createElement('div', { className: 'text-xs text-gray-600 font-medium mt-1' }, `${getWeatherEmoji(item.weather.icon)} ${item.weather.temp}℃ 💨${item.weather.wind}m`)
                                         )
@@ -1039,7 +1126,6 @@
                                         item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 mb-2 overflow-x-auto' },
                                             item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
                                         )
-                                        // ★ホーム画面なので操作ボタンは表示しない
                                     )
                                 ) :
                                 React.createElement('div', { key: 'h-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
@@ -1057,7 +1143,6 @@
                                         item.type === 'food' && item.foodAmount && React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][item.foodAmount] || '普通') + ` (${item.foodAmount}/5)`),
                                         item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
                                     )
-                                    // ★ホーム画面なので操作ボタンは表示しない
                                 )
                             )
                     )
@@ -1165,7 +1250,6 @@
                                 React.createElement('span', { className: 'text-xs font-bold' }, '入浴'),
                                 React.createElement('span', { className: 'text-[10px] opacity-80 mt-1' }, formatSimpleTimeAgo(getLastRecordTime('bath')) || '-')
                             ),
-                            // ★ブラッシングボタン追加
                             React.createElement('button', { onClick: () => initHealthForm('brushing', null), className: 'bg-purple-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm' },
                                 React.createElement('span', { className: 'text-2xl mb-1' }, '✨'),
                                 React.createElement('span', { className: 'text-xs font-bold' }, 'ﾌﾞﾗｼ'),
@@ -1208,7 +1292,6 @@
                                             item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 mb-2 overflow-x-auto' },
                                                 item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
                                             ),
-                                            // ★お世話画面なので操作ボタンを表示
                                             React.createElement('div', { className: 'flex justify-end gap-2' },
                                                 item.positions && item.positions.length > 0 && React.createElement('button', { onClick: () => setShowMap(item.positions), className: 'px-3 py-1 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded text-xs font-bold' }, '地図'),
                                                 React.createElement('button', { onClick: () => setEditingWalk(item), className: 'px-3 py-1 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded text-xs font-bold' }, '編集'),
@@ -1230,7 +1313,6 @@
                                             ),
                                             React.createElement('div', { className: 'text-right flex flex-col justify-between items-end gap-2' },
                                                 React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatRelativeTime(item.date)),
-                                                // ★お世話画面なので操作ボタンを表示 (お世話履歴でも編集削除可能に)
                                                 React.createElement('div', { className: 'flex gap-2' },
                                                     React.createElement('button', { onClick: () => initHealthForm(item.type, item), className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded' }, '編集'),
                                                     React.createElement('button', { onClick: () => deleteHealthRecord(item.id), className: 'text-red-500 text-xs px-2 py-1' }, '削除')
@@ -1249,7 +1331,6 @@
                     })
                 ),
 
-                // ... (stats, badges, settings, footer, modal群は既存のまま)
                 activeTab === 'stats' && React.createElement('div', { className: 'p-4' },
                     React.createElement('div', { className: 'flex gap-2 mb-4 overflow-x-auto' },
                         ['week', 'month', 'year', 'all'].map(v => React.createElement('button', {
