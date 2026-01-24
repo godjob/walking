@@ -1,5 +1,5 @@
 /**
- * 福といっしょ LINE通知機能 Backend (v2.4.1)
+ * 福といっしょ LINE通知機能 Backend (v2.4.2)
  */
 require('dotenv').config();
 const functions = require('firebase-functions/v1');
@@ -82,9 +82,14 @@ exports.lineWebhook = functions.region('asia-northeast1').https.onRequest(async 
 exports.notifyWalkStart = functions.region('asia-northeast1').https.onCall(async (data, context) => {
     const walkers = data.walkers || [];
     const walkersText = walkers.length > 0 ? walkers.join('と') : '誰か';
+
+    // ★現在時刻を取得してフォーマット
+    const now = admin.firestore.Timestamp.now();
+    const dateStr = formatDateTime(now);
+
     const message = {
         type: 'text',
-        text: `🐕 散歩スタート！\n\n${walkersText}が福くんの散歩に出発しました💨\nいってらっしゃい！`
+        text: `🐕 散歩スタート！\n${dateStr}\n\n${walkersText}が福くんの散歩に出発しました💨\nいってらっしゃい！`
     };
     await broadcastToFamily([message]);
     return { success: true };
@@ -208,7 +213,6 @@ exports.onHealthWrite = functions.region('asia-northeast1').firestore
                 detail = `${walker}がお世話をしました。`;
         }
 
-        // 「(内容が修正されました)」の行は削除
         const textContent = `${title} ${actionTitle}\n${dateStr}\n\n${detail}${memo}`;
 
         const messages = [{ type: 'text', text: textContent }];
