@@ -1,5 +1,5 @@
 /**
- * 福といっしょ LINE通知機能 Backend (v2.1.0)
+ * 福といっしょ LINE通知機能 Backend (v2.3.0)
  */
 require('dotenv').config();
 const functions = require('firebase-functions/v1');
@@ -95,7 +95,11 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
             weatherStr = `\n天気: ${emoji} ${walk.weather.temp}℃ (風速${walk.weather.wind}m)`;
         }
 
-        const pooStr = walk.poo ? 'あり💩' : 'なし';
+        // ★うんちの硬さ情報を追加
+        const firmnessLabels = { 1: 'とてもやわらかい', 2: 'やわらかい', 3: '普通', 4: '硬め', 5: '硬い' };
+        const firmnessStr = (walk.poo && walk.pooFirmness) ? ` (${firmnessLabels[walk.pooFirmness] || '普通'})` : '';
+
+        const pooStr = walk.poo ? `あり💩${firmnessStr}` : 'なし';
         const peeStr = walk.pee ? 'あり💧' : 'なし';
         const memoStr = walk.memo ? `\n\n📝 メモ:\n${walk.memo}` : '';
 
@@ -125,13 +129,11 @@ exports.onHealthWrite = functions.region('asia-northeast1').firestore
     .onWrite(async (change, context) => {
         const newData = change.after.exists ? change.after.data() : null;
 
-        // 削除された場合、または「通知しない」設定の場合は何もしない
         if (!newData || newData.notify === false) return;
 
         const isUpdate = change.before.exists;
         const actionTitle = isUpdate ? '(修正)' : '';
 
-        // 文言生成
         let title = '';
         let detail = '';
 
@@ -182,14 +184,11 @@ exports.onHealthWrite = functions.region('asia-northeast1').firestore
                 detail = `${walker}がお世話をしました。`;
         }
 
-        // 更新の場合は追記
         const updateNote = isUpdate ? '\n\n(内容が修正されました)' : '';
-
         const textContent = `${title} ${actionTitle}\n\n${detail}${memo}${updateNote}`;
 
         const messages = [{ type: 'text', text: textContent }];
 
-        // 写真があれば追加
         if (newData.photos && newData.photos.length > 0) {
             const photoMessages = newData.photos.slice(0, 4).map(url => ({
                 type: 'image', originalContentUrl: url, previewImageUrl: url
