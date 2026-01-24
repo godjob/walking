@@ -1,8 +1,7 @@
 /**
- * 福といっしょ LINE通知機能 Backend (v7対応版)
+ * 福といっしょ LINE通知機能 Backend (v2.1.0)
  */
 require('dotenv').config();
-// 【重要】v1構文を明示的に使用してエラーを回避
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const line = require('@line/bot-sdk');
@@ -10,7 +9,6 @@ const line = require('@line/bot-sdk');
 admin.initializeApp();
 const db = admin.firestore();
 
-// 環境変数(.env)からLINEの設定を読み込み
 const config = {
     channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
     channelSecret: process.env.LINE_CHANNEL_SECRET,
@@ -18,7 +16,7 @@ const config = {
 
 const client = new line.Client(config);
 
-// 家族全員にメッセージを送る関数
+// 共通: 家族全員にメッセージを送る
 async function broadcastToFamily(messages) {
     try {
         const snapshot = await db.collection('line_users').get();
@@ -83,17 +81,10 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
         const walk = snapshot.data();
         const messages = [];
 
-        // 日時・天気などの情報作成
         const dateObj = walk.startTime.toDate();
-        // ★ここを変更：日本時間 (Asia/Tokyo) に変換する
         const dateStr = dateObj.toLocaleString('ja-JP', {
-            timeZone: 'Asia/Tokyo',
-            month: 'numeric',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit'
+            timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit'
         });
-
         const walkersStr = Array.isArray(walk.walkers) ? walk.walkers.join(', ') : walk.walkers;
 
         let weatherStr = '';
@@ -118,12 +109,90 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
 
         messages.push({ type: 'text', text: textContent });
 
-        // 写真があれば追加
         if (walk.photos && walk.photos.length > 0) {
             const photoMessages = walk.photos.slice(0, 4).map(url => ({
-                type: 'image',
-                originalContentUrl: url,
-                previewImageUrl: url
+                type: 'image', originalContentUrl: url, previewImageUrl: url
+            }));
+            messages.push(...photoMessages);
+        }
+
+        await broadcastToFamily(messages);
+    });
+
+// 4. お世話記録通知 (新規・更新共通)
+exports.onHealthWrite = functions.region('asia-northeast1').firestore
+    .document('health/{healthId}')
+    .onWrite(async (change, context) => {
+        const newData = change.after.exists ? change.after.data() : null;
+
+        // 削除された場合、または「通知しない」設定の場合は何もしない
+        if (!newData || newData.notify === false) return;
+
+        const isUpdate = change.before.exists;
+        const actionTitle = isUpdate ? '(修正)' : '';
+
+        // 文言生成
+        let title = '';
+        let detail = '';
+
+        const walker = newData.walker || '誰か';
+        const memo = newData.memo ? `\n📝 ${newData.memo}` : '';
+
+        switch (newData.type) {
+            case 'excretion':
+                title = '💩 排泄';
+                const firmnessLabels = { 1: 'とてもやわらかい', 2: 'やわらかい', 3: '普通', 4: '硬め', 5: '硬い' };
+                const firmness = firmnessLabels[newData.pooFirmness] || '普通';
+                detail = `${walker}がトイレの世話をしました。\nうんちの硬さ: ${firmness}`;
+                break;
+
+            case 'food':
+                title = '🥣 ご飯';
+                const amountLabels = { 1: '空っぽ', 2: '少し', 3: '普通', 4: '多め', 5: '満杯' };
+                const amount = amountLabels[newData.foodAmount] || '普通';
+                detail = `${walker}がご飯をあげました。\n残量: ${amount}`;
+                break;
+
+            case 'medicine':
+                title = '💊 薬';
+                const medType = newData.medicineType || '薬';
+                const vaccine = newData.isVaccine ? '(予防接種)' : '';
+                detail = `${walker}が${medType}${vaccine}をあげました。`;
+                break;
+
+            case 'bath':
+                title = '🛁 入浴';
+                detail = `${walker}が福をお風呂に入れました✨`;
+                break;
+
+            case 'grooming':
+                title = '✂️ 散髪';
+                const place = newData.groomedBy === 'shop' ? `お店(${newData.shopName})` : '自宅';
+                detail = `${walker}が${place}で散髪しました💈`;
+                break;
+
+            case 'hospital':
+                title = '🏥 病院';
+                const hospitalName = newData.hospitalName || '病院';
+                detail = `${walker}が${hospitalName}に連れて行きました。\n理由: ${newData.reason || 'なし'}`;
+                break;
+
+            default:
+                title = '✨ お世話';
+                detail = `${walker}がお世話をしました。`;
+        }
+
+        // 更新の場合は追記
+        const updateNote = isUpdate ? '\n\n(内容が修正されました)' : '';
+
+        const textContent = `${title} ${actionTitle}\n\n${detail}${memo}${updateNote}`;
+
+        const messages = [{ type: 'text', text: textContent }];
+
+        // 写真があれば追加
+        if (newData.photos && newData.photos.length > 0) {
+            const photoMessages = newData.photos.slice(0, 4).map(url => ({
+                type: 'image', originalContentUrl: url, previewImageUrl: url
             }));
             messages.push(...photoMessages);
         }

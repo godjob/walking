@@ -19,8 +19,8 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        // ★バージョン更新 (メジャーアップデート)
-        const APP_VERSION = 'v2.0.0';
+        // ★バージョン更新
+        const APP_VERSION = 'v2.1.0';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -566,6 +566,19 @@
                         className: 'w-full p-2 border rounded', rows: 3, placeholder: '詳細をメモ...'
                     })
                 ),
+
+                // ★LINE通知チェックボックス
+                React.createElement('div', { className: 'flex items-center mb-2' },
+                    React.createElement('input', {
+                        type: 'checkbox',
+                        id: 'notify-check',
+                        checked: formData.notify,
+                        onChange: (e) => onChange({ ...formData, notify: e.target.checked }),
+                        className: 'w-5 h-5 text-blue-600 rounded focus:ring-blue-500 mr-2'
+                    }),
+                    React.createElement('label', { htmlFor: 'notify-check', className: 'text-sm font-bold text-gray-700' }, 'LINEで通知する')
+                ),
+
                 React.createElement('div', { className: 'flex gap-2' },
                     React.createElement('button', { onClick: handleSubmit, className: 'flex-1 bg-blue-500 text-white py-2 rounded font-bold' }, '保存'),
                     React.createElement('button', { onClick: onCancel, className: 'flex-1 bg-gray-300 py-2 rounded' }, 'キャンセル')
@@ -574,7 +587,6 @@
         }
 
         function App() {
-            // ★ホームを初期タブに設定
             const [activeTab, setActiveTab] = useState('home');
             const [isWalking, setIsWalking] = useState(false);
             const [currentWalk, setCurrentWalk] = useState(null);
@@ -597,12 +609,37 @@
             const [now, setNow] = useState(new Date());
             const stationaryTimeRef = useRef(0);
             const lastPositionRef = useRef(null);
-
-            // ★散歩開始フォームの表示状態
             const [showWalkSetup, setShowWalkSetup] = useState(false);
 
             const [healthFormData, setHealthFormData] = useState({});
             const [originalHealthData, setOriginalHealthData] = useState({});
+
+            // ★相対時間フォーマッター (24時間以内なら「◯時間前」)
+            const formatRelativeTime = (date) => {
+                if (!date) return '';
+                const d = new Date(date);
+                const now = new Date();
+                const diffMs = now - d;
+                const diffHours = diffMs / (1000 * 60 * 60);
+
+                if (diffHours < 24 && diffHours >= 0) {
+                    if (diffHours < 1) {
+                        const diffMins = Math.floor(diffMs / (1000 * 60));
+                        return diffMins <= 0 ? 'たった今' : `${diffMins}分前`;
+                    }
+                    return `${Math.floor(diffHours)}時間前`;
+                }
+                // 24時間以上前なら通常フォーマット
+                const year = d.getFullYear().toString().slice(-2);
+                return `${year}/${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+            };
+
+            const formatDate = (date) => {
+                if (!date) return '';
+                const d = new Date(date);
+                const year = d.getFullYear().toString().slice(-2);
+                return `${year}/${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+            };
 
             useEffect(() => {
                 let timer;
@@ -660,21 +697,19 @@
                     pooFirmness: record?.pooFirmness || 3,
                     foodAmount: record?.foodAmount || 3,
                     memo: record?.memo || '',
-                    photos: record?.photos || []
+                    photos: record?.photos || [],
+                    notify: true // ★初期値は通知ON
                 };
                 setHealthFormData(initialData);
                 setOriginalHealthData(initialData);
                 setHealthType(type);
                 if (record) setEditingHealth(record);
                 setShowHealthForm(true);
-                // 散歩セットアップは閉じる
                 setShowWalkSetup(false);
             };
 
             const handleTabChange = (newTab) => {
-                // 散歩中は他のタブへ移動禁止
                 if (isWalking && newTab !== 'health') { alert('散歩中です！'); return; }
-
                 if (activeTab === 'health' && showHealthForm) {
                     const isDirty = JSON.stringify(healthFormData) !== JSON.stringify(originalHealthData);
                     if (isDirty) {
@@ -763,7 +798,6 @@
                         stationaryTimeRef.current = 0;
                         setCurrentWalk(walk);
                         setIsWalking(true);
-                        // セットアップ画面を閉じる
                         setShowWalkSetup(false);
                         setPhotos([]);
                         setNow(new Date());
@@ -842,13 +876,6 @@
                 if (confirm('この記録を削除しますか?')) { try { await db.collection('health').doc(id).delete(); } catch (e) { alert('削除に失敗しました: ' + e); } }
             };
 
-            const formatDate = (date) => {
-                if (!date) return '';
-                const d = new Date(date);
-                const year = d.getFullYear().toString().slice(-2);
-                return `${year}/${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-            };
-
             const formatTimer = (start) => {
                 if (!start) return '0分00秒';
                 const diffMs = now - start;
@@ -904,7 +931,6 @@
             const recentWalks = walks.slice(0, 20);
             const recentHealth = healthRecords.slice(0, 20);
 
-            // 全履歴を統合して日付順にソート (お世話タブ用)
             const allRecords = [...walks.map(w => ({ ...w, type: 'walk' })), ...healthRecords]
                 .sort((a, b) => {
                     const dateA = a.type === 'walk' ? a.startTime : a.date;
@@ -916,14 +942,12 @@
                 React.createElement('div', { className: 'bg-gradient-to-r from-blue-500 to-purple-500 text-white p-4' }, React.createElement('h1', { className: 'text-2xl font-bold' }, '🐕 福といっしょ')),
                 React.createElement('div', { className: 'flex border-b overflow-x-auto' },
                     React.createElement('button', { onClick: () => handleTabChange('home'), className: `flex-shrink-0 px-4 py-3 ${activeTab === 'home' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}` }, 'ホーム'),
-                    // ★散歩タブは削除
                     React.createElement('button', { onClick: () => handleTabChange('health'), className: `flex-shrink-0 px-4 py-3 ${activeTab === 'health' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}` }, 'お世話'),
                     React.createElement('button', { onClick: () => handleTabChange('stats'), className: `flex-shrink-0 px-4 py-3 ${activeTab === 'stats' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}` }, '統計'),
                     React.createElement('button', { onClick: () => handleTabChange('badges'), className: `flex-shrink-0 px-4 py-3 ${activeTab === 'badges' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}` }, 'バッジ'),
                     React.createElement('button', { onClick: () => handleTabChange('settings'), className: `flex-shrink-0 px-4 py-3 ${activeTab === 'settings' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}` }, '設定')
                 ),
 
-                // ★ホームタブ (旧ダッシュボード)
                 activeTab === 'home' && React.createElement('div', { className: 'p-4' },
                     React.createElement('div', { className: 'bg-gradient-to-r from-blue-100 to-purple-100 p-4 rounded-lg mb-4 shadow-sm' },
                         React.createElement('h2', { className: 'text-xl font-bold mb-3' }, '📊 ' + getPeriodLabel('week')),
@@ -939,7 +963,6 @@
                     React.createElement('div', { className: 'space-y-3 max-h-96 overflow-y-auto pr-1' },
                         allRecords.length === 0 ? React.createElement('p', { className: 'text-center text-gray-500 mt-4' }, 'まだ記録がありません') :
                             allRecords.slice(0, 10).map(item => item.type === 'walk' ?
-                                // 散歩履歴 (テキストボタン化)
                                 React.createElement('div', { key: 'w-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                                     React.createElement('div', { className: 'flex justify-between items-start mb-2' },
                                         React.createElement('div', { className: 'flex-1' },
@@ -949,7 +972,8 @@
                                             )
                                         ),
                                         React.createElement('div', { className: 'text-right flex flex-col items-end pl-2' },
-                                            React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, formatDate(item.startTime)),
+                                            // ★相対時間表示を使用
+                                            React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, formatRelativeTime(item.startTime)),
                                             React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, '⏱️' + item.duration + '分 📍' + (item.distance / 1000).toFixed(2) + 'km'),
                                             item.weather && React.createElement('div', { className: 'text-xs text-gray-600 font-medium mt-1' }, `${getWeatherEmoji(item.weather.icon)} ${item.weather.temp}℃ 💨${item.weather.wind}m`)
                                         )
@@ -959,7 +983,6 @@
                                         item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 mb-2 overflow-x-auto' },
                                             item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
                                         ),
-                                        // テキストボタンに変更
                                         React.createElement('div', { className: 'flex justify-end gap-2' },
                                             item.positions && item.positions.length > 0 && React.createElement('button', { onClick: () => setShowMap(item.positions), className: 'px-3 py-1 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded text-xs font-bold' }, '地図'),
                                             React.createElement('button', { onClick: () => setEditingWalk(item), className: 'px-3 py-1 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded text-xs font-bold' }, '編集'),
@@ -967,11 +990,11 @@
                                         )
                                     )
                                 ) :
-                                // お世話履歴
                                 React.createElement('div', { key: 'h-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                                     React.createElement('div', { className: 'flex justify-between items-start mb-2' },
                                         React.createElement('div', null, React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : '💊 薬') + ' (' + item.walker + ')')),
-                                        React.createElement('div', { className: 'text-right' }, React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatDate(item.date)))
+                                        // ★相対時間表示を使用
+                                        React.createElement('div', { className: 'text-right' }, React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatRelativeTime(item.date)))
                                     ),
                                     React.createElement('div', { className: 'mb-2' },
                                         item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mb-2 overflow-x-auto' },
@@ -988,10 +1011,8 @@
                     )
                 ),
 
-                // ★お世話タブ (散歩機能統合)
                 activeTab === 'health' && React.createElement('div', { className: 'p-4' },
                     isWalking ? React.createElement('div', { className: 'space-y-4' },
-                        // ★散歩中の画面 (お世話タブ内に移動)
                         React.createElement('div', { className: 'bg-blue-50 p-4 rounded-lg border-2 border-blue-200' },
                             React.createElement('p', { className: 'text-sm text-gray-600 mb-1' }, '👥 散歩者: ' + currentWalk?.walkers.join(', ')),
                             React.createElement('p', { className: 'text-lg font-bold text-blue-700 mb-1' }, '⏱️ 経過時間: ' + formatTimer(currentWalk?.startTime)),
@@ -1023,7 +1044,6 @@
                         ),
                         React.createElement('button', { onClick: () => { if (confirm('散歩を終了しますか？')) endWalk(); }, disabled: uploadingPhotos, className: `w-full py-4 rounded-lg text-xl font-bold shadow-md ${uploadingPhotos ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}` }, uploadingPhotos ? '写真アップロード中...' : '🏁 散歩終了')
                     ) : showWalkSetup ? React.createElement('div', { className: 'space-y-4' },
-                        // ★散歩開始前セットアップ画面
                         React.createElement('h3', { className: 'font-bold text-lg' }, '🚶 散歩の準備'),
                         React.createElement('div', null,
                             React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '散歩者を選択'),
@@ -1039,9 +1059,7 @@
                             React.createElement('button', { onClick: () => setShowWalkSetup(false), className: 'flex-1 bg-gray-300 text-black py-3 rounded-lg text-lg font-bold' }, 'キャンセル')
                         )
                     ) : !showHealthForm ? React.createElement('div', null,
-                        // ★お世話メニュー (散歩ボタン追加)
                         React.createElement('div', { className: 'grid grid-cols-3 gap-2 mb-6' },
-                            // 散歩ボタンを追加
                             React.createElement('button', { onClick: () => setShowWalkSetup(true), className: 'bg-green-500 text-white p-4 rounded-lg text-center flex flex-col items-center shadow-md transform active:scale-95 transition-transform' }, React.createElement('span', { className: 'text-2xl mb-1' }, '🚶'), React.createElement('span', { className: 'text-xs font-bold' }, '散歩')),
                             React.createElement('button', { onClick: () => initHealthForm('excretion', null), className: 'bg-yellow-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm' }, React.createElement('span', { className: 'text-2xl mb-1' }, '💩'), React.createElement('span', { className: 'text-xs font-bold' }, '排泄')),
                             React.createElement('button', { onClick: () => initHealthForm('food', null), className: 'bg-orange-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm' }, React.createElement('span', { className: 'text-2xl mb-1' }, '🥣'), React.createElement('span', { className: 'text-xs font-bold' }, 'ご飯')),
@@ -1051,11 +1069,9 @@
                             React.createElement('button', { onClick: () => initHealthForm('hospital', null), className: 'bg-red-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm' }, React.createElement('span', { className: 'text-2xl mb-1' }, '🏥'), React.createElement('span', { className: 'text-xs font-bold' }, '病院'))
                         ),
                         React.createElement('h3', { className: 'font-bold mb-3' }, 'お世話したよ'),
-                        // ★履歴リスト (散歩・お世話統合版)
                         React.createElement('div', { className: 'space-y-3' },
                             allRecords.length === 0 ? React.createElement('p', { className: 'text-center text-gray-500 mt-4' }, '記録がありません') :
                                 allRecords.map(item => item.type === 'walk' ?
-                                    // 散歩履歴アイテム
                                     React.createElement('div', { key: 'w-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                                         React.createElement('div', { className: 'flex justify-between items-start mb-2' },
                                             React.createElement('div', { className: 'flex-1' },
@@ -1065,7 +1081,8 @@
                                                 )
                                             ),
                                             React.createElement('div', { className: 'text-right flex flex-col items-end pl-2' },
-                                                React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, formatDate(item.startTime)),
+                                                // ★相対時間表示を使用
+                                                React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, formatRelativeTime(item.startTime)),
                                                 React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, '⏱️' + item.duration + '分 📍' + (item.distance / 1000).toFixed(2) + 'km'),
                                                 item.weather && React.createElement('div', { className: 'text-xs text-gray-600 font-medium mt-1' }, `${getWeatherEmoji(item.weather.icon)} ${item.weather.temp}℃ 💨${item.weather.wind}m`)
                                             )
@@ -1082,7 +1099,6 @@
                                             )
                                         )
                                     ) :
-                                    // お世話履歴アイテム
                                     React.createElement('div', { key: 'h-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                                         React.createElement('div', { className: 'flex justify-between items-start' },
                                             React.createElement('div', { className: 'flex-1' },
@@ -1096,7 +1112,8 @@
                                                 )
                                             ),
                                             React.createElement('div', { className: 'text-right flex flex-col justify-between items-end gap-2' },
-                                                React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatDate(item.date)),
+                                                // ★相対時間表示を使用
+                                                React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatRelativeTime(item.date)),
                                                 React.createElement('div', { className: 'flex gap-2' },
                                                     React.createElement('button', { onClick: () => initHealthForm(item.type, item), className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded' }, '編集'),
                                                     React.createElement('button', { onClick: () => deleteHealthRecord(item.id), className: 'text-red-500 text-xs px-2 py-1' }, '削除')
@@ -1115,7 +1132,6 @@
                     })
                 ),
 
-                // (stats, badges, settings, footer, modal群は変更なし)
                 activeTab === 'stats' && React.createElement('div', { className: 'p-4' },
                     React.createElement('div', { className: 'flex gap-2 mb-4 overflow-x-auto' },
                         ['week', 'month', 'year', 'all'].map(v => React.createElement('button', {
