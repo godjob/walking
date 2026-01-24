@@ -30,8 +30,8 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        // ★バージョン更新なし
-        const APP_VERSION = 'v2.5.0';
+        // ★バージョン更新 (パッチ)
+        const APP_VERSION = 'v2.5.2';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -220,7 +220,7 @@
             return React.createElement('div', { className: 'w-full mb-2 bg-white/50 rounded-lg p-2' },
                 React.createElement('div', {
                     ref: scrollRef,
-                    // ★高さを h-48 から h-32 (約アイコン6個分) に変更
+                    // 高さは h-32 (128px) を維持
                     className: 'flex gap-2 overflow-x-auto no-scrollbar pb-2 items-end h-32',
                 },
                     dates.map((date, index) => {
@@ -249,7 +249,8 @@
                                 React.createElement('span', { className: 'text-[10px]' }, weekLabel)
                             ),
                             dayEvents.map((ev, i) =>
-                                React.createElement('div', { key: i, className: 'text-lg leading-none -mb-1' }, getIcon(ev.type))
+                                // ★修正: text-sm (14px) に縮小し、mb-0.5 (2px) で高密度に積み上げ
+                                React.createElement('div', { key: i, className: 'text-sm leading-none mb-0.5' }, getIcon(ev.type))
                             )
                         );
                     })
@@ -1331,6 +1332,7 @@
                     })
                 ),
 
+                // ... (以下 stats, badges, settings, footer, modal群は既存のまま)
                 activeTab === 'stats' && React.createElement('div', { className: 'p-4' },
                     React.createElement('div', { className: 'flex gap-2 mb-4 overflow-x-auto' },
                         ['week', 'month', 'year', 'all'].map(v => React.createElement('button', {
