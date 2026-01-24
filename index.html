@@ -19,8 +19,8 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        // ★バージョン更新
-        const APP_VERSION = 'v1.7.1';
+        // ★バージョン更新 (機能追加のためマイナーバージョンアップ)
+        const APP_VERSION = 'v1.8.0';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -47,10 +47,8 @@
             { id: 'distance100', name: '合計100km', icon: '🎖️', condition: (c, d) => d >= 100000 }
         ];
 
-        // OpenWeatherMap API設定
         const WEATHER_API_KEY = "ba80598060806c2e4741766d34286357";
 
-        // 天気情報を取得する関数
         const fetchWeatherData = async (lat, lng) => {
             try {
                 if (!WEATHER_API_KEY) return null;
@@ -70,7 +68,6 @@
             }
         };
 
-        // 天気アイコンコードを絵文字に変換
         const getWeatherEmoji = (iconCode) => {
             if (!iconCode) return '🌤️';
             const map = {
@@ -81,7 +78,6 @@
             return map[code] || '🌤️';
         };
 
-        // ローカル時間の YYYY-MM-DD を取得するヘルパー関数
         const getTodayDateString = () => {
             const d = new Date();
             const year = d.getFullYear();
@@ -90,7 +86,13 @@
             return `${year}-${month}-${day}`;
         };
 
-        // 画像圧縮ユーティリティ
+        // 日時入力用のフォーマット変換 (Date -> YYYY-MM-DDTHH:mm)
+        const toLocalISOString = (date) => {
+            const d = new Date(date);
+            const pad = (n) => n.toString().padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        };
+
         const compressImage = (file) => {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -145,7 +147,6 @@
             }
         }
 
-        // 写真拡大ビューワー
         function PhotoViewer({ src, onClose }) {
             const [scale, setScale] = useState(1);
             useEffect(() => {
@@ -221,6 +222,9 @@
         function WalkEditForm({ walk, walkers, onSave, onCancel }) {
             const [formData, setFormData] = useState({
                 walkers: walk.walkers || [],
+                // 日時の初期値を設定
+                startTime: walk.startTime ? toLocalISOString(walk.startTime) : '',
+                endTime: walk.endTime ? toLocalISOString(walk.endTime) : '',
                 pee: walk.pee || false,
                 poo: walk.poo || false,
                 water: walk.water || false,
@@ -267,7 +271,22 @@
 
             const handleSubmit = () => {
                 if (formData.walkers.length === 0) { alert('散歩者を選択してください'); return; }
-                onSave(formData);
+
+                // 時間の再計算
+                const start = new Date(formData.startTime);
+                const end = new Date(formData.endTime);
+                if (end < start) { alert('終了時間は開始時間より後にしてください'); return; }
+
+                const newDuration = Math.floor((end - start) / 60000); // 分単位
+
+                const saveData = {
+                    ...formData,
+                    startTime: firebase.firestore.Timestamp.fromDate(start),
+                    endTime: firebase.firestore.Timestamp.fromDate(end),
+                    duration: newDuration
+                };
+
+                onSave(saveData);
             };
 
             return React.createElement('div', {
@@ -277,6 +296,29 @@
                     React.createElement('div', { className: 'p-4' },
                         React.createElement('h3', { className: 'font-bold text-lg mb-4' }, '散歩記録を編集'),
                         React.createElement('div', { className: 'space-y-4' },
+                            React.createElement('div', null,
+                                React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '日時'),
+                                React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
+                                    React.createElement('div', null,
+                                        React.createElement('label', { className: 'text-xs text-gray-500' }, '開始'),
+                                        React.createElement('input', {
+                                            type: 'datetime-local',
+                                            value: formData.startTime,
+                                            onChange: (e) => setFormData({ ...formData, startTime: e.target.value }),
+                                            className: 'w-full p-2 border rounded text-sm'
+                                        })
+                                    ),
+                                    React.createElement('div', null,
+                                        React.createElement('label', { className: 'text-xs text-gray-500' }, '終了'),
+                                        React.createElement('input', {
+                                            type: 'datetime-local',
+                                            value: formData.endTime,
+                                            onChange: (e) => setFormData({ ...formData, endTime: e.target.value }),
+                                            className: 'w-full p-2 border rounded text-sm'
+                                        })
+                                    )
+                                )
+                            ),
                             React.createElement('div', null,
                                 React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '散歩者'),
                                 React.createElement('div', { className: 'space-y-2' },
@@ -346,12 +388,44 @@
         }
 
         function HealthForm({ type, walkers, formData, onChange, onSave, onCancel }) {
+            // 写真アップロード状態管理
+            const [uploading, setUploading] = useState(false);
+
             const handleSubmit = () => {
                 if (!formData.walker) { alert('担当者を選択してください'); return; }
                 if (type === 'hospital' && !formData.hospitalName) { alert('病院名を入力してください'); return; }
                 if (type === 'grooming' && formData.groomedBy === 'shop' && !formData.shopName) { alert('店舗名を入力してください'); return; }
                 if (type === 'medicine' && !formData.medicineType) { alert('薬の種類を入力してください'); return; }
                 onSave(formData);
+            };
+
+            // お世話用の写真アップロード処理
+            const handlePhotoUpload = async (e) => {
+                const files = Array.from(e.target.files);
+                if (files.length === 0) return;
+                setUploading(true);
+                try {
+                    const uploadPromises = files.map(async (file) => {
+                        const compressedBlob = await compressImage(file);
+                        const randomId = Math.random().toString(36).substring(7);
+                        const fileName = file.name.split('.')[0] + '.jpg';
+                        // お世話も walks フォルダに保存してOK
+                        const ref = storage.ref(`health/${Date.now()}_${randomId}_${fileName}`);
+                        await ref.put(compressedBlob);
+                        return await ref.getDownloadURL();
+                    });
+                    const newUrls = await Promise.all(uploadPromises);
+                    onChange({ ...formData, photos: [...(formData.photos || []), ...newUrls] });
+                } catch (err) {
+                    alert('アップロードに失敗しました: ' + err);
+                } finally {
+                    setUploading(false);
+                    e.target.value = '';
+                }
+            };
+
+            const removePhoto = (index) => {
+                onChange({ ...formData, photos: (formData.photos || []).filter((_, i) => i !== index) });
             };
 
             const getFirmnessLabel = (value) => {
@@ -387,7 +461,8 @@
                         className: 'w-full p-2 border rounded'
                     })
                 ),
-                (type === 'excretion' || type === 'hospital' || type === 'food') && React.createElement('div', null,
+                // 全ての項目で時間を入力可能に変更
+                React.createElement('div', null,
                     React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '時刻'),
                     React.createElement('input', {
                         type: 'time', value: formData.time,
@@ -475,6 +550,24 @@
                     React.createElement('div', { className: 'flex justify-between text-xs text-gray-500 mt-1' },
                         React.createElement('span', null, '空'), React.createElement('span', null, '普通'), React.createElement('span', null, '満杯')
                     )
+                ),
+                // お世話にも写真アップロードを追加
+                React.createElement('div', null,
+                    React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '写真 (最大4枚)'),
+                    React.createElement('div', { className: 'grid grid-cols-4 gap-2 mb-2' },
+                        (formData.photos || []).map((url, i) => React.createElement('div', { key: i, className: 'relative' },
+                            React.createElement('img', { src: url, className: 'w-full h-16 object-cover rounded' }),
+                            React.createElement('button', {
+                                onClick: () => removePhoto(i),
+                                className: 'absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 text-xs'
+                            }, '×')
+                        ))
+                    ),
+                    React.createElement('input', {
+                        type: 'file', accept: 'image/*', multiple: true, onChange: handlePhotoUpload,
+                        disabled: uploading, className: 'w-full text-sm'
+                    }),
+                    uploading && React.createElement('p', { className: 'text-sm text-gray-500' }, 'アップロード中...')
                 ),
                 React.createElement('div', null,
                     React.createElement('label', { className: 'block text-sm font-medium mb-1' }, 'メモ'),
@@ -572,7 +665,8 @@
                     isVaccine: record?.isVaccine || false,
                     pooFirmness: record?.pooFirmness || 3,
                     foodAmount: record?.foodAmount || 3,
-                    memo: record?.memo || ''
+                    memo: record?.memo || '',
+                    photos: record?.photos || [] // 初期値に写真を追加
                 };
                 setHealthFormData(initialData);
                 setOriginalHealthData(initialData);
@@ -732,8 +826,7 @@
             const deleteWalk = async (walkId) => { if (confirm('この散歩記録を削除しますか?')) { await db.collection('walks').doc(walkId).delete(); } };
 
             const saveHealthRecord = async (data) => {
-                const dateTime = (data.type === 'excretion' || data.type === 'hospital' || data.type === 'food') && data.time
-                    ? new Date(`${data.date}T${data.time}`) : new Date(data.date);
+                const dateTime = data.time ? new Date(`${data.date}T${data.time}`) : new Date(data.date);
                 const recordData = { ...data, date: firebase.firestore.Timestamp.fromDate(dateTime) };
                 delete recordData.id;
                 if (data.id) { await db.collection('health').doc(data.id).update(recordData); }
@@ -868,9 +961,13 @@
                                     React.createElement('div', { key: 'h-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                                         React.createElement('div', { className: 'flex justify-between items-start mb-2' },
                                             React.createElement('div', null, React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : '💊 薬') + ' (' + item.walker + ')')),
-                                            React.createElement('div', { className: 'text-right' }, React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, (item.type === 'excretion' || item.type === 'hospital' || item.type === 'food') ? formatDate(item.date) : formatDateOnly(item.date)))
+                                            React.createElement('div', { className: 'text-right' }, React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatDate(item.date))) // 時間入力が必須になったため、常に時刻付きフォーマットを使用
                                         ),
                                         React.createElement('div', { className: 'mb-2' },
+                                            // レイアウト変更：写真を先に表示
+                                            item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mb-2 overflow-x-auto' },
+                                                item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
+                                            ),
                                             item.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + item.hospitalName),
                                             item.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + item.medicineType),
                                             item.type === 'excretion' && item.pooFirmness && React.createElement('p', { className: 'text-sm' }, '硬さ: ' + getFirmnessEmoji(item.pooFirmness)),
@@ -902,7 +999,6 @@
                                     React.createElement('div', { className: 'flex justify-between items-start mb-2' },
                                         React.createElement('div', { className: 'flex-1' },
                                             React.createElement('p', { className: 'font-bold text-lg' }, '🚶 散歩 (' + (Array.isArray(walk.walkers) ? walk.walkers.join(', ') : (walk.walkers || walk.walker || 'undefined')) + ')'),
-                                            // 【変更】アイコンサイズを小さく (text-3xl -> text-lg)
                                             React.createElement('div', { className: 'flex gap-1 mt-1' },
                                                 walk.pee && React.createElement('span', { className: 'text-lg' }, '💧'),
                                                 walk.poo && React.createElement('span', { className: 'text-lg' }, '💩'),
@@ -917,11 +1013,9 @@
                                     ),
                                     React.createElement('div', null,
                                         walk.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-2 border-t pt-2' }, walk.memo),
-                                        // ★写真を先に表示
-                                        walk.photos && walk.photos.length > 0 && React.createElement('div', { className: 'grid grid-cols-4 gap-1 mt-3 mb-2' }, // mb-2を追加して少し隙間を空けました
+                                        walk.photos && walk.photos.length > 0 && React.createElement('div', { className: 'grid grid-cols-4 gap-1 mt-3 mb-2' },
                                             walk.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'w-full h-16 object-cover rounded cursor-pointer', onClick: () => setViewingPhoto(url) }))
                                         ),
-                                        // ★ボタンをその下に移動
                                         React.createElement('div', { className: 'flex justify-end gap-2 mt-2' },
                                             walk.positions && walk.positions.length > 0 && React.createElement('button', { onClick: () => setShowMap(walk.positions), className: 'p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg text-xl transition-colors', title: '地図を見る' }, '🗺️'),
                                             React.createElement('button', { onClick: () => setEditingWalk(walk), className: 'p-2 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg text-xl transition-colors', title: '編集' }, '✏️'),
@@ -990,12 +1084,16 @@
                                             )
                                         ),
                                         React.createElement('div', { className: 'text-right flex flex-col justify-between items-end gap-2' },
-                                            React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, (record.type === 'excretion' || record.type === 'hospital' || record.type === 'food') ? formatDate(record.date) : formatDateOnly(record.date)),
+                                            React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatDate(record.date)), // ここも時刻表示ありに統一
                                             React.createElement('div', { className: 'flex gap-2' },
                                                 React.createElement('button', { onClick: () => initHealthForm(record.type, record), className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded' }, '編集'),
                                                 React.createElement('button', { onClick: () => deleteHealthRecord(record.id), className: 'text-red-500 text-xs px-2 py-1' }, '削除')
                                             )
                                         )
+                                    ),
+                                    // お世話履歴にも写真表示を追加
+                                    record.photos && record.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 overflow-x-auto' },
+                                        record.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
                                     )
                                 ))
                         )
@@ -1005,6 +1103,7 @@
                     })
                 ),
 
+                // (以下 stats, badges, settings, footer, modal群は既存のまま)
                 activeTab === 'stats' && React.createElement('div', { className: 'p-4' },
                     React.createElement('div', { className: 'flex gap-2 mb-4 overflow-x-auto' },
                         ['week', 'month', 'year', 'all'].map(v => React.createElement('button', {
