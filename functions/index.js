@@ -1,5 +1,5 @@
 /**
- * 福といっしょ LINE通知機能 Backend (v2.4.2)
+ * 福といっしょ LINE通知機能 Backend (v2.6.0)
  */
 require('dotenv').config();
 const functions = require('firebase-functions/v1');
@@ -83,7 +83,6 @@ exports.notifyWalkStart = functions.region('asia-northeast1').https.onCall(async
     const walkers = data.walkers || [];
     const walkersText = walkers.length > 0 ? walkers.join('と') : '誰か';
 
-    // ★現在時刻を取得してフォーマット
     const now = admin.firestore.Timestamp.now();
     const dateStr = formatDateTime(now);
 
@@ -102,7 +101,6 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
         const walk = snapshot.data();
         const messages = [];
 
-        // 日時フォーマット (YY/MM/DD HH:mm)
         const dateStr = formatDateTime(walk.startTime);
         const walkersStr = Array.isArray(walk.walkers) ? walk.walkers.join(', ') : walk.walkers;
 
@@ -155,7 +153,6 @@ exports.onHealthWrite = functions.region('asia-northeast1').firestore
         const isUpdate = change.before.exists;
         const actionTitle = isUpdate ? '(修正)' : '';
 
-        // 日時フォーマット
         const dateStr = formatDateTime(newData.date);
 
         let title = '';
@@ -194,6 +191,16 @@ exports.onHealthWrite = functions.region('asia-northeast1').firestore
             case 'brushing':
                 title = '✨ ブラッシング';
                 detail = `${walker}がブラッシングをしてふわふわになりました✨`;
+                break;
+
+            // ★掃除通知を追加
+            case 'cleaning':
+                title = '🧹 掃除';
+                const cleanedItems = [];
+                if (newData.isFloorCleaned) cleanedItems.push('床✨');
+                if (newData.isToiletCleaned) cleanedItems.push('トイレ✨');
+                const cleanedText = cleanedItems.length > 0 ? `\n詳細: ${cleanedItems.join(', ')}` : '';
+                detail = `${walker}が掃除をしました。${cleanedText}`;
                 break;
 
             case 'grooming':
