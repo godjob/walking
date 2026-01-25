@@ -31,7 +31,7 @@
     <div id="app"></div>
     <script>
         // ★バージョン更新 (パッチ)
-        const APP_VERSION = 'v2.5.3';
+        const APP_VERSION = 'v2.5.4';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -397,7 +397,6 @@
             return React.createElement('div', {
                 className: 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'
             },
-                // ★修正: max-h-screen -> max-h-[85vh] (スマホでボタンが隠れるのを防止)
                 React.createElement('div', { className: 'bg-white rounded-lg w-full max-w-md max-h-[85vh] overflow-y-auto' },
                     React.createElement('div', { className: 'p-4' },
                         React.createElement('h3', { className: 'font-bold text-lg mb-4' }, '散歩記録を編集'),
@@ -693,7 +692,6 @@
                     React.createElement('label', { htmlFor: 'notify-check', className: 'text-sm font-bold text-gray-700' }, 'LINEで通知する')
                 ),
 
-                // ★修正: 画面下部に余白を追加 (mb-8)
                 React.createElement('div', { className: 'flex gap-2 mb-8' },
                     React.createElement('button', { onClick: handleSubmit, className: 'flex-1 bg-blue-500 text-white py-2 rounded font-bold' }, '保存'),
                     React.createElement('button', { onClick: onCancel, className: 'flex-1 bg-gray-300 py-2 rounded' }, 'キャンセル')
@@ -701,7 +699,6 @@
             );
         }
 
-        // ... (App, ReactDOM.render)
         function App() {
             const [activeTab, setActiveTab] = useState('home');
             const [isWalking, setIsWalking] = useState(false);
@@ -1074,6 +1071,11 @@
                 });
 
             const getLastRecordTime = (type) => {
+                if (type === 'excretion') {
+                    // ★修正: 排泄の場合は「お世話の排泄」または「散歩のうんち」の最新を取得
+                    const record = allRecords.find(r => r.type === 'excretion' || (r.type === 'walk' && r.poo));
+                    return record ? (record.startTime || record.date) : null;
+                }
                 const record = allRecords.find(r => r.type === type);
                 return record ? (record.startTime || record.date) : null;
             };
