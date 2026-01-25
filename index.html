@@ -31,7 +31,7 @@
     <div id="app"></div>
     <script>
         // ★バージョン更新
-        const APP_VERSION = 'v2.7.0';
+        const APP_VERSION = 'v2.7.2';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -1201,11 +1201,6 @@
                                         item.memo && React.createElement('div', { className: 'text-sm text-gray-600 mb-1 bg-gray-50 p-1 rounded' }, item.memo),
                                         item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 mb-2 overflow-x-auto' },
                                             item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
-                                        ),
-                                        React.createElement('div', { className: 'flex justify-end gap-2' },
-                                            item.positions && item.positions.length > 0 && React.createElement('button', { onClick: () => setShowMap(item.positions), className: 'px-3 py-1 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded text-xs font-bold' }, '地図'),
-                                            React.createElement('button', { onClick: () => setEditingWalk(item), className: 'px-3 py-1 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded text-xs font-bold' }, '編集'),
-                                            React.createElement('button', { onClick: () => deleteWalk(item.id), className: 'px-3 py-1 text-red-600 bg-red-50 hover:bg-red-100 rounded text-xs font-bold' }, '削除')
                                         )
                                     )
                                 ) :
@@ -1227,10 +1222,6 @@
                                             item.isToiletCleaned && React.createElement('span', { className: 'bg-blue-100 px-2 py-0.5 rounded text-blue-800' }, 'トイレ: 済')
                                         ),
                                         item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
-                                    ),
-                                    React.createElement('div', { className: 'flex justify-end gap-2' },
-                                        React.createElement('button', { onClick: () => initHealthForm(item.type, item), className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded' }, '編集'),
-                                        React.createElement('button', { onClick: () => deleteHealthRecord(item.id), className: 'text-red-500 text-xs px-2 py-1' }, '削除')
                                     )
                                 )
                             ),
@@ -1439,7 +1430,7 @@
                     })
                 ),
 
-                // ... (以下 stats, badges, settings, footer, modal群は既存のまま)
+                // ... (stats, badges, settings, footer, modal群は既存のまま)
                 activeTab === 'stats' && React.createElement('div', { className: 'p-4' },
                     React.createElement('div', { className: 'flex gap-2 mb-4 overflow-x-auto' },
                         ['week', 'month', 'year', 'all'].map(v => React.createElement('button', {
