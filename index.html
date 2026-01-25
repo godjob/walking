@@ -31,7 +31,7 @@
     <div id="app"></div>
     <script>
         // ★バージョン更新 (パッチ)
-        const APP_VERSION = 'v2.5.4';
+        const APP_VERSION = 'v2.5.5';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -977,6 +977,17 @@
                 const endTime = new Date();
                 const duration = Math.floor((endTime - currentWalk.startTime) / 60000);
                 const distance = calculateTotalDistance(currentWalk.positions);
+
+                // ★修正: 画面リセットを先に、保存を後に
+                setIsWalking(false);
+                setTimeout(() => {
+                    setCurrentWalk(null);
+                    setSelectedWalkers([]);
+                    setPhotos([]);
+                    stationaryTimeRef.current = 0;
+                    lastPositionRef.current = null;
+                }, 0);
+
                 await db.collection('walks').add({
                     walkers: currentWalk.walkers,
                     startTime: firebase.firestore.Timestamp.fromDate(currentWalk.startTime),
@@ -989,7 +1000,6 @@
                     water: currentWalk.water,
                     memo: currentWalk.memo, photos: photos, positions: currentWalk.positions, weather: currentWalk.weather || null
                 });
-                setCurrentWalk(null); setIsWalking(false); setSelectedWalkers([]); setPhotos([]); stationaryTimeRef.current = 0; lastPositionRef.current = null;
             };
 
             const updateWalk = async (walkId, data) => { await db.collection('walks').doc(walkId).update(data); setEditingWalk(null); };
@@ -1072,7 +1082,6 @@
 
             const getLastRecordTime = (type) => {
                 if (type === 'excretion') {
-                    // ★修正: 排泄の場合は「お世話の排泄」または「散歩のうんち」の最新を取得
                     const record = allRecords.find(r => r.type === 'excretion' || (r.type === 'walk' && r.poo));
                     return record ? (record.startTime || record.date) : null;
                 }
@@ -1153,7 +1162,8 @@
                 ),
 
                 activeTab === 'health' && React.createElement('div', { className: 'p-4' },
-                    isWalking ? React.createElement('div', { className: 'space-y-4' },
+                    // ★修正: isWalking && currentWalk でデータ存在確認
+                    isWalking && currentWalk ? React.createElement('div', { className: 'space-y-4' },
                         React.createElement('div', { className: 'bg-blue-50 p-4 rounded-lg border-2 border-blue-200' },
                             React.createElement('p', { className: 'text-sm text-gray-600 mb-1' }, '👥 散歩者: ' + currentWalk?.walkers.join(', ')),
                             React.createElement('p', { className: 'text-lg font-bold text-blue-700 mb-1' }, '⏱️ 経過時間: ' + formatTimer(currentWalk?.startTime)),
@@ -1304,27 +1314,19 @@
                                         )
                                     ) :
                                     React.createElement('div', { key: 'h-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
-                                        React.createElement('div', { className: 'flex justify-between items-start' },
-                                            React.createElement('div', { className: 'flex-1' },
-                                                React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : '💊 薬') + ' (' + item.walker + ')'),
-                                                React.createElement('div', { className: 'mt-1' },
-                                                    item.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + item.hospitalName),
-                                                    item.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + item.medicineType),
-                                                    item.type === 'excretion' && item.pooFirmness && React.createElement('p', { className: 'text-sm' }, '硬さ: ' + getFirmnessEmoji(item.pooFirmness)),
-                                                    item.type === 'food' && item.foodAmount && React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][item.foodAmount] || '普通') + ` (${item.foodAmount}/5)`),
-                                                    item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
-                                                )
-                                            ),
-                                            React.createElement('div', { className: 'text-right flex flex-col justify-between items-end gap-2' },
-                                                React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatRelativeTime(item.date)),
-                                                React.createElement('div', { className: 'flex gap-2' },
-                                                    React.createElement('button', { onClick: () => initHealthForm(item.type, item), className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded' }, '編集'),
-                                                    React.createElement('button', { onClick: () => deleteHealthRecord(item.id), className: 'text-red-500 text-xs px-2 py-1' }, '削除')
-                                                )
-                                            )
+                                        React.createElement('div', { className: 'flex justify-between items-start mb-2' },
+                                            React.createElement('div', null, React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : '💊 薬') + ' (' + item.walker + ')')),
+                                            React.createElement('div', { className: 'text-right' }, React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatRelativeTime(item.date)))
                                         ),
-                                        item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 overflow-x-auto' },
-                                            item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
+                                        React.createElement('div', { className: 'mb-2' },
+                                            item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mb-2 overflow-x-auto' },
+                                                item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
+                                            ),
+                                            item.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + item.hospitalName),
+                                            item.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + item.medicineType),
+                                            item.type === 'excretion' && item.pooFirmness && React.createElement('p', { className: 'text-sm' }, '硬さ: ' + getFirmnessEmoji(item.pooFirmness)),
+                                            item.type === 'food' && item.foodAmount && React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][item.foodAmount] || '普通') + ` (${item.foodAmount}/5)`),
+                                            item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
                                         )
                                     )
                                 )
@@ -1335,6 +1337,7 @@
                     })
                 ),
 
+                // ... (stats, badges, settings, footer, modal群は既存のまま)
                 activeTab === 'stats' && React.createElement('div', { className: 'p-4' },
                     React.createElement('div', { className: 'flex gap-2 mb-4 overflow-x-auto' },
                         ['week', 'month', 'year', 'all'].map(v => React.createElement('button', {
