@@ -30,8 +30,8 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        // ★バージョン更新 (パッチ)
-        const APP_VERSION = 'v2.6.1';
+        // ★バージョン更新
+        const APP_VERSION = 'v2.7.0';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -747,6 +747,11 @@
             const [healthFormData, setHealthFormData] = useState({});
             const [originalHealthData, setOriginalHealthData] = useState({});
 
+            // ★ページング用のState
+            const [homePage, setHomePage] = useState(1);
+            const [healthPage, setHealthPage] = useState(1);
+            const ITEMS_PER_PAGE = 20;
+
             const formatRelativeTime = (date) => {
                 if (!date) return '';
                 const d = new Date(date);
@@ -1087,6 +1092,35 @@
                 return badges.filter(badge => badge.condition(totalCount, totalDistance));
             };
 
+            // ★ページング用コンポーネント
+            const PaginationControls = ({ currentPage, totalPages, onPageChange }) => {
+                if (totalPages <= 1) return null;
+
+                return React.createElement('div', { className: 'flex justify-center items-center gap-2 mt-4 text-sm' },
+                    React.createElement('button', {
+                        onClick: () => onPageChange(1),
+                        disabled: currentPage === 1,
+                        className: `px-2 py-1 rounded border ${currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`
+                    }, '|<< 最新'),
+                    React.createElement('button', {
+                        onClick: () => onPageChange(Math.max(1, currentPage - 1)),
+                        disabled: currentPage === 1,
+                        className: `px-2 py-1 rounded border ${currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`
+                    }, '< 新しい'),
+                    React.createElement('span', { className: 'font-bold mx-2' }, `${currentPage} / ${totalPages}`),
+                    React.createElement('button', {
+                        onClick: () => onPageChange(Math.min(totalPages, currentPage + 1)),
+                        disabled: currentPage === totalPages,
+                        className: `px-2 py-1 rounded border ${currentPage === totalPages ? 'bg-gray-100 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`
+                    }, '古い >'),
+                    React.createElement('button', {
+                        onClick: () => onPageChange(totalPages),
+                        disabled: currentPage === totalPages,
+                        className: `px-2 py-1 rounded border ${currentPage === totalPages ? 'bg-gray-100 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`
+                    }, '最古 >>|')
+                );
+            };
+
             if (loading) { return React.createElement('div', { className: 'flex items-center justify-center min-h-screen' }, React.createElement('div', { className: 'text-lg' }, '読み込み中...')); }
 
             const stats = getStats(statsView);
@@ -1109,6 +1143,14 @@
                 const record = allRecords.find(r => r.type === type);
                 return record ? (record.startTime || record.date) : null;
             };
+
+            // ★ページング処理 (ホーム用)
+            const homeTotalPages = Math.ceil(allRecords.length / ITEMS_PER_PAGE) || 1;
+            const displayedHomeRecords = allRecords.slice((homePage - 1) * ITEMS_PER_PAGE, homePage * ITEMS_PER_PAGE);
+
+            // ★ページング処理 (お世話用)
+            const healthTotalPages = Math.ceil(allRecords.length / ITEMS_PER_PAGE) || 1;
+            const displayedHealthRecords = allRecords.slice((healthPage - 1) * ITEMS_PER_PAGE, healthPage * ITEMS_PER_PAGE);
 
             return React.createElement('div', { className: 'max-w-md mx-auto bg-white min-h-screen pb-20' },
                 React.createElement('div', { className: 'bg-gradient-to-r from-blue-500 to-purple-500 text-white p-4' }, React.createElement('h1', { className: 'text-2xl font-bold' }, '🐕 福といっしょ')),
@@ -1137,7 +1179,7 @@
                     React.createElement('h3', { className: 'font-bold mb-2 text-lg flex items-center' }, React.createElement('span', { className: 'mr-2' }, '🕒'), '福のお世話'),
                     React.createElement('div', { className: 'space-y-3 max-h-96 overflow-y-auto pr-1' },
                         allRecords.length === 0 ? React.createElement('p', { className: 'text-center text-gray-500 mt-4' }, 'まだ記録がありません') :
-                            allRecords.slice(0, 10).map(item => item.type === 'walk' ?
+                            displayedHomeRecords.map(item => item.type === 'walk' ?
                                 React.createElement('div', { key: 'w-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                                     React.createElement('div', { className: 'flex justify-between items-start mb-2' },
                                         React.createElement('div', { className: 'flex-1' },
@@ -1159,6 +1201,11 @@
                                         item.memo && React.createElement('div', { className: 'text-sm text-gray-600 mb-1 bg-gray-50 p-1 rounded' }, item.memo),
                                         item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 mb-2 overflow-x-auto' },
                                             item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
+                                        ),
+                                        React.createElement('div', { className: 'flex justify-end gap-2' },
+                                            item.positions && item.positions.length > 0 && React.createElement('button', { onClick: () => setShowMap(item.positions), className: 'px-3 py-1 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded text-xs font-bold' }, '地図'),
+                                            React.createElement('button', { onClick: () => setEditingWalk(item), className: 'px-3 py-1 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded text-xs font-bold' }, '編集'),
+                                            React.createElement('button', { onClick: () => deleteWalk(item.id), className: 'px-3 py-1 text-red-600 bg-red-50 hover:bg-red-100 rounded text-xs font-bold' }, '削除')
                                         )
                                     )
                                 ) :
@@ -1180,9 +1227,18 @@
                                             item.isToiletCleaned && React.createElement('span', { className: 'bg-blue-100 px-2 py-0.5 rounded text-blue-800' }, 'トイレ: 済')
                                         ),
                                         item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
+                                    ),
+                                    React.createElement('div', { className: 'flex justify-end gap-2' },
+                                        React.createElement('button', { onClick: () => initHealthForm(item.type, item), className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded' }, '編集'),
+                                        React.createElement('button', { onClick: () => deleteHealthRecord(item.id), className: 'text-red-500 text-xs px-2 py-1' }, '削除')
                                     )
                                 )
-                            )
+                            ),
+                        React.createElement(PaginationControls, {
+                            currentPage: homePage,
+                            totalPages: homeTotalPages,
+                            onPageChange: setHomePage
+                        })
                     )
                 ),
 
@@ -1312,7 +1368,7 @@
                         React.createElement('h3', { className: 'font-bold mb-3' }, 'お世話したよ'),
                         React.createElement('div', { className: 'space-y-3' },
                             allRecords.length === 0 ? React.createElement('p', { className: 'text-center text-gray-500 mt-4' }, '記録がありません') :
-                                allRecords.map(item => item.type === 'walk' ?
+                                displayedHealthRecords.map(item => item.type === 'walk' ?
                                     React.createElement('div', { key: 'w-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                                         React.createElement('div', { className: 'flex justify-between items-start mb-2' },
                                             React.createElement('div', { className: 'flex-1' },
@@ -1335,7 +1391,6 @@
                                             item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 mb-2 overflow-x-auto' },
                                                 item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
                                             ),
-                                            // ★お世話タブ用の操作ボタンを復活 (散歩用)
                                             React.createElement('div', { className: 'flex justify-end gap-2' },
                                                 item.positions && item.positions.length > 0 && React.createElement('button', { onClick: () => setShowMap(item.positions), className: 'px-3 py-1 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded text-xs font-bold' }, '地図'),
                                                 React.createElement('button', { onClick: () => setEditingWalk(item), className: 'px-3 py-1 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded text-xs font-bold' }, '編集'),
@@ -1361,7 +1416,6 @@
                                             ),
                                             React.createElement('div', { className: 'text-right flex flex-col justify-between items-end gap-2' },
                                                 React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatRelativeTime(item.date)),
-                                                // ★お世話タブ用の操作ボタンを復活 (その他用)
                                                 React.createElement('div', { className: 'flex gap-2' },
                                                     React.createElement('button', { onClick: () => initHealthForm(item.type, item), className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded' }, '編集'),
                                                     React.createElement('button', { onClick: () => deleteHealthRecord(item.id), className: 'text-red-500 text-xs px-2 py-1' }, '削除')
@@ -1373,14 +1427,19 @@
                                         )
                                     )
                                 )
-                        )
+                        ),
+                        React.createElement(PaginationControls, {
+                            currentPage: healthPage,
+                            totalPages: healthTotalPages,
+                            onPageChange: setHealthPage
+                        })
                     ) : React.createElement(HealthForm, {
                         type: healthType, walkers: walkers, formData: healthFormData, onChange: setHealthFormData,
                         onSave: saveHealthRecord, onCancel: () => { setShowHealthForm(false); setEditingHealth(null); }
                     })
                 ),
 
-                // ... (stats, badges, settings, footer, modal群は既存のまま)
+                // ... (以下 stats, badges, settings, footer, modal群は既存のまま)
                 activeTab === 'stats' && React.createElement('div', { className: 'p-4' },
                     React.createElement('div', { className: 'flex gap-2 mb-4 overflow-x-auto' },
                         ['week', 'month', 'year', 'all'].map(v => React.createElement('button', {
