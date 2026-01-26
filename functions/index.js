@@ -1,5 +1,5 @@
 /**
- * 福といっしょ LINE通知機能 Backend (v2.6.0)
+ * 福といっしょ LINE通知機能 Backend (v2.8.0)
  */
 require('dotenv').config();
 const functions = require('firebase-functions/v1');
@@ -20,7 +20,6 @@ const client = new line.Client(config);
 function formatDateTime(timestamp) {
     if (!timestamp) return '';
     const dateObj = timestamp.toDate();
-    // JSTに変換してDateオブジェクトを作成
     const d = new Date(dateObj.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
 
     const yy = d.getFullYear().toString().slice(-2);
@@ -32,7 +31,6 @@ function formatDateTime(timestamp) {
     return `${yy}/${mm}/${dd} ${hh}:${min}`;
 }
 
-// 共通: 家族全員にメッセージを送る
 async function broadcastToFamily(messages) {
     try {
         const snapshot = await db.collection('line_users').get();
@@ -48,7 +46,6 @@ async function broadcastToFamily(messages) {
     }
 }
 
-// 1. ユーザー登録 (Webhook)
 exports.lineWebhook = functions.region('asia-northeast1').https.onRequest(async (req, res) => {
     if (req.method !== 'POST') {
         res.status(405).send('Method Not Allowed');
@@ -78,7 +75,6 @@ exports.lineWebhook = functions.region('asia-northeast1').https.onRequest(async 
     }
 });
 
-// 2. 散歩開始通知
 exports.notifyWalkStart = functions.region('asia-northeast1').https.onCall(async (data, context) => {
     const walkers = data.walkers || [];
     const walkersText = walkers.length > 0 ? walkers.join('と') : '誰か';
@@ -94,7 +90,6 @@ exports.notifyWalkStart = functions.region('asia-northeast1').https.onCall(async
     return { success: true };
 });
 
-// 3. 散歩終了通知
 exports.onWalkCreated = functions.region('asia-northeast1').firestore
     .document('walks/{walkId}')
     .onCreate(async (snapshot, context) => {
@@ -142,7 +137,6 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
         await broadcastToFamily(messages);
     });
 
-// 4. お世話記録通知
 exports.onHealthWrite = functions.region('asia-northeast1').firestore
     .document('health/{healthId}')
     .onWrite(async (change, context) => {
@@ -193,7 +187,6 @@ exports.onHealthWrite = functions.region('asia-northeast1').firestore
                 detail = `${walker}がブラッシングをしてふわふわになりました✨`;
                 break;
 
-            // ★掃除通知を追加
             case 'cleaning':
                 title = '🧹 掃除';
                 const cleanedItems = [];
@@ -213,6 +206,12 @@ exports.onHealthWrite = functions.region('asia-northeast1').firestore
                 title = '🏥 病院';
                 const hospitalName = newData.hospitalName || '病院';
                 detail = `${walker}が${hospitalName}に連れて行きました。\n理由: ${newData.reason || 'なし'}`;
+                break;
+
+            // ★体重通知を追加
+            case 'weight':
+                title = '⚖️ 体重測定';
+                detail = `${walker}が福ちゃんの体重を測りました。\n結果: ${newData.weight}kg`;
                 break;
 
             default:

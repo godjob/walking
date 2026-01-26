@@ -31,7 +31,7 @@
     <div id="app"></div>
     <script>
         // ★バージョン更新
-        const APP_VERSION = 'v2.7.2';
+        const APP_VERSION = 'v2.8.0';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -206,6 +206,7 @@
                     'bath': '🛁',
                     'brushing': '✨',
                     'cleaning': '🧹',
+                    'weight': '⚖️', // ★体重アイコン追加
                     'grooming': '✂️',
                     'hospital': '🏥'
                 };
@@ -515,6 +516,7 @@
                 if (type === 'hospital' && !formData.hospitalName) { alert('病院名を入力してください'); return; }
                 if (type === 'grooming' && formData.groomedBy === 'shop' && !formData.shopName) { alert('店舗名を入力してください'); return; }
                 if (type === 'medicine' && !formData.medicineType) { alert('薬の種類を入力してください'); return; }
+                if (type === 'weight' && !formData.weight) { alert('体重を入力してください'); return; }
                 onSave(formData);
             };
 
@@ -548,7 +550,7 @@
             return React.createElement('div', { className: 'space-y-4 bg-white p-4 rounded-lg' },
                 React.createElement('h3', { className: 'font-bold text-lg' },
                     (formData.id ? '✏️ 編集: ' : '') +
-                    (type === 'hospital' ? '🏥 病院記録' : type === 'grooming' ? '✂️ 散髪記録' : type === 'bath' ? '🛁 入浴記録' : type === 'brushing' ? '✨ ブラッシング' : type === 'cleaning' ? '🧹 掃除' : type === 'food' ? '🥣 ご飯' : type === 'excretion' ? '💩 排泄記録' : '💊 薬記録')
+                    (type === 'hospital' ? '🏥 病院記録' : type === 'grooming' ? '✂️ 散髪記録' : type === 'bath' ? '🛁 入浴記録' : type === 'brushing' ? '✨ ブラッシング' : type === 'cleaning' ? '🧹 掃除' : type === 'weight' ? '⚖️ 体重' : type === 'food' ? '🥣 ご飯' : type === 'excretion' ? '💩 排泄記録' : '💊 薬記録')
                 ),
                 React.createElement('div', null,
                     React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '担当者'),
@@ -675,6 +677,15 @@
                             }), 'トイレ掃除'
                         )
                     )
+                ),
+                // ★体重入力フィールド
+                type === 'weight' && React.createElement('div', null,
+                    React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '体重 (kg)'),
+                    React.createElement('input', {
+                        type: 'number', step: '0.1', value: formData.weight || '',
+                        onChange: (e) => onChange({ ...formData, weight: e.target.value }),
+                        className: 'w-full p-2 border rounded', placeholder: '例: 12.5'
+                    })
                 ),
                 React.createElement('div', null,
                     React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '写真 (最大4枚)'),
@@ -851,6 +862,7 @@
                     foodAmount: record?.foodAmount || 3,
                     isFloorCleaned: record?.isFloorCleaned || false,
                     isToiletCleaned: record?.isToiletCleaned || false,
+                    weight: record?.weight || '', // ★体重初期値
                     memo: record?.memo || '',
                     photos: record?.photos || [],
                     notify: true
@@ -1206,7 +1218,7 @@
                                 ) :
                                 React.createElement('div', { key: 'h-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                                     React.createElement('div', { className: 'flex justify-between items-start mb-2' },
-                                        React.createElement('div', null, React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'cleaning' ? '🧹 掃除' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : '💊 薬') + ' (' + item.walker + ')')),
+                                        React.createElement('div', null, React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'cleaning' ? '🧹 掃除' : item.type === 'weight' ? '⚖️ 体重' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : '💊 薬') + ' (' + item.walker + ')')),
                                         React.createElement('div', { className: 'text-right' }, React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatRelativeTime(item.date)))
                                     ),
                                     React.createElement('div', { className: 'mb-2' },
@@ -1221,6 +1233,8 @@
                                             item.isFloorCleaned && React.createElement('span', { className: 'bg-green-100 px-2 py-0.5 rounded text-green-800' }, '床: 済'),
                                             item.isToiletCleaned && React.createElement('span', { className: 'bg-blue-100 px-2 py-0.5 rounded text-blue-800' }, 'トイレ: 済')
                                         ),
+                                        // ★体重結果表示
+                                        item.type === 'weight' && React.createElement('p', { className: 'text-lg font-bold text-blue-600' }, item.weight + ' kg'),
                                         item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
                                     )
                                 )
@@ -1345,6 +1359,12 @@
                                 React.createElement('span', { className: 'text-xs font-bold' }, '掃除'),
                                 React.createElement('span', { className: 'text-[10px] opacity-80 mt-1' }, formatSimpleTimeAgo(getLastRecordTime('cleaning')) || '-')
                             ),
+                            // ★体重ボタン追加
+                            React.createElement('button', { onClick: () => initHealthForm('weight', null), className: 'bg-indigo-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm' },
+                                React.createElement('span', { className: 'text-2xl mb-1' }, '⚖️'),
+                                React.createElement('span', { className: 'text-xs font-bold' }, '体重'),
+                                React.createElement('span', { className: 'text-[10px] opacity-80 mt-1' }, formatSimpleTimeAgo(getLastRecordTime('weight')) || '-')
+                            ),
                             React.createElement('button', { onClick: () => initHealthForm('grooming', null), className: 'bg-pink-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm' },
                                 React.createElement('span', { className: 'text-2xl mb-1' }, '✂️'),
                                 React.createElement('span', { className: 'text-xs font-bold' }, '散髪'),
@@ -1392,7 +1412,7 @@
                                     React.createElement('div', { key: 'h-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                                         React.createElement('div', { className: 'flex justify-between items-start' },
                                             React.createElement('div', { className: 'flex-1' },
-                                                React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'cleaning' ? '🧹 掃除' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : '💊 薬') + ' (' + item.walker + ')'),
+                                                React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'cleaning' ? '🧹 掃除' : item.type === 'weight' ? '⚖️ 体重' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : '💊 薬') + ' (' + item.walker + ')'),
                                                 React.createElement('div', { className: 'mt-1' },
                                                     item.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + item.hospitalName),
                                                     item.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + item.medicineType),
@@ -1402,6 +1422,8 @@
                                                         item.isFloorCleaned && React.createElement('span', { className: 'bg-green-100 px-2 py-0.5 rounded text-green-800' }, '床: 済'),
                                                         item.isToiletCleaned && React.createElement('span', { className: 'bg-blue-100 px-2 py-0.5 rounded text-blue-800' }, 'トイレ: 済')
                                                     ),
+                                                    // ★履歴リストでの体重表示
+                                                    item.type === 'weight' && React.createElement('p', { className: 'text-lg font-bold text-indigo-600' }, item.weight + ' kg'),
                                                     item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
                                                 )
                                             ),
