@@ -30,8 +30,8 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        // ★バージョン更新
-        const APP_VERSION = 'v2.8.0';
+        // ★バージョン更新 v2.8.1
+        const APP_VERSION = 'v2.8.1';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -206,7 +206,7 @@
                     'bath': '🛁',
                     'brushing': '✨',
                     'cleaning': '🧹',
-                    'weight': '⚖️', // ★体重アイコン追加
+                    'weight': '⚖️',
                     'grooming': '✂️',
                     'hospital': '🏥'
                 };
@@ -661,7 +661,8 @@
                 ),
                 type === 'cleaning' && React.createElement('div', null,
                     React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '実施した内容'),
-                    React.createElement('div', { className: 'flex gap-4 mt-2' },
+                    // ★flex-wrapを追加して飲み水交換を追加
+                    React.createElement('div', { className: 'flex gap-4 mt-2 flex-wrap' },
                         React.createElement('label', { className: 'flex items-center' },
                             React.createElement('input', {
                                 type: 'checkbox', checked: formData.isFloorCleaned,
@@ -675,10 +676,17 @@
                                 onChange: (e) => onChange({ ...formData, isToiletCleaned: e.target.checked }),
                                 className: 'mr-2 w-5 h-5'
                             }), 'トイレ掃除'
+                        ),
+                        // ★飲み水交換チェックボックス追加
+                        React.createElement('label', { className: 'flex items-center' },
+                            React.createElement('input', {
+                                type: 'checkbox', checked: formData.isWaterChanged,
+                                onChange: (e) => onChange({ ...formData, isWaterChanged: e.target.checked }),
+                                className: 'mr-2 w-5 h-5'
+                            }), '飲み水交換'
                         )
                     )
                 ),
-                // ★体重入力フィールド
                 type === 'weight' && React.createElement('div', null,
                     React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '体重 (kg)'),
                     React.createElement('input', {
@@ -758,7 +766,6 @@
             const [healthFormData, setHealthFormData] = useState({});
             const [originalHealthData, setOriginalHealthData] = useState({});
 
-            // ★ページング用のState
             const [homePage, setHomePage] = useState(1);
             const [healthPage, setHealthPage] = useState(1);
             const ITEMS_PER_PAGE = 20;
@@ -862,7 +869,9 @@
                     foodAmount: record?.foodAmount || 3,
                     isFloorCleaned: record?.isFloorCleaned || false,
                     isToiletCleaned: record?.isToiletCleaned || false,
-                    weight: record?.weight || '', // ★体重初期値
+                    // ★isWaterChanged初期化
+                    isWaterChanged: record?.isWaterChanged || false,
+                    weight: record?.weight || '',
                     memo: record?.memo || '',
                     photos: record?.photos || [],
                     notify: true
@@ -1104,7 +1113,6 @@
                 return badges.filter(badge => badge.condition(totalCount, totalDistance));
             };
 
-            // ★ページング用コンポーネント
             const PaginationControls = ({ currentPage, totalPages, onPageChange }) => {
                 if (totalPages <= 1) return null;
 
@@ -1156,11 +1164,9 @@
                 return record ? (record.startTime || record.date) : null;
             };
 
-            // ★ページング処理 (ホーム用)
             const homeTotalPages = Math.ceil(allRecords.length / ITEMS_PER_PAGE) || 1;
             const displayedHomeRecords = allRecords.slice((homePage - 1) * ITEMS_PER_PAGE, homePage * ITEMS_PER_PAGE);
 
-            // ★ページング処理 (お世話用)
             const healthTotalPages = Math.ceil(allRecords.length / ITEMS_PER_PAGE) || 1;
             const displayedHealthRecords = allRecords.slice((healthPage - 1) * ITEMS_PER_PAGE, healthPage * ITEMS_PER_PAGE);
 
@@ -1229,11 +1235,12 @@
                                         item.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + item.medicineType),
                                         item.type === 'excretion' && item.pooFirmness && React.createElement('p', { className: 'text-sm' }, '硬さ: ' + getFirmnessEmoji(item.pooFirmness)),
                                         item.type === 'food' && item.foodAmount && React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][item.foodAmount] || '普通') + ` (${item.foodAmount}/5)`),
-                                        item.type === 'cleaning' && React.createElement('div', { className: 'text-sm flex gap-2 mt-1' },
+                                        item.type === 'cleaning' && React.createElement('div', { className: 'text-sm flex gap-2 mt-1 flex-wrap' },
                                             item.isFloorCleaned && React.createElement('span', { className: 'bg-green-100 px-2 py-0.5 rounded text-green-800' }, '床: 済'),
-                                            item.isToiletCleaned && React.createElement('span', { className: 'bg-blue-100 px-2 py-0.5 rounded text-blue-800' }, 'トイレ: 済')
+                                            item.isToiletCleaned && React.createElement('span', { className: 'bg-blue-100 px-2 py-0.5 rounded text-blue-800' }, 'トイレ: 済'),
+                                            // ★飲み水交換バッジ表示 (ホーム)
+                                            item.isWaterChanged && React.createElement('span', { className: 'bg-cyan-100 px-2 py-0.5 rounded text-cyan-800' }, '水: 済')
                                         ),
-                                        // ★体重結果表示
                                         item.type === 'weight' && React.createElement('p', { className: 'text-lg font-bold text-blue-600' }, item.weight + ' kg'),
                                         item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
                                     )
@@ -1359,7 +1366,6 @@
                                 React.createElement('span', { className: 'text-xs font-bold' }, '掃除'),
                                 React.createElement('span', { className: 'text-[10px] opacity-80 mt-1' }, formatSimpleTimeAgo(getLastRecordTime('cleaning')) || '-')
                             ),
-                            // ★体重ボタン追加
                             React.createElement('button', { onClick: () => initHealthForm('weight', null), className: 'bg-indigo-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm' },
                                 React.createElement('span', { className: 'text-2xl mb-1' }, '⚖️'),
                                 React.createElement('span', { className: 'text-xs font-bold' }, '体重'),
@@ -1418,11 +1424,12 @@
                                                     item.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + item.medicineType),
                                                     item.type === 'excretion' && item.pooFirmness && React.createElement('p', { className: 'text-sm' }, '硬さ: ' + getFirmnessEmoji(item.pooFirmness)),
                                                     item.type === 'food' && item.foodAmount && React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][item.foodAmount] || '普通') + ` (${item.foodAmount}/5)`),
-                                                    item.type === 'cleaning' && React.createElement('div', { className: 'text-sm flex gap-2 mt-1' },
+                                                    item.type === 'cleaning' && React.createElement('div', { className: 'text-sm flex gap-2 mt-1 flex-wrap' },
                                                         item.isFloorCleaned && React.createElement('span', { className: 'bg-green-100 px-2 py-0.5 rounded text-green-800' }, '床: 済'),
-                                                        item.isToiletCleaned && React.createElement('span', { className: 'bg-blue-100 px-2 py-0.5 rounded text-blue-800' }, 'トイレ: 済')
+                                                        item.isToiletCleaned && React.createElement('span', { className: 'bg-blue-100 px-2 py-0.5 rounded text-blue-800' }, 'トイレ: 済'),
+                                                        // ★飲み水交換バッジ表示 (お世話)
+                                                        item.isWaterChanged && React.createElement('span', { className: 'bg-cyan-100 px-2 py-0.5 rounded text-cyan-800' }, '水: 済')
                                                     ),
-                                                    // ★履歴リストでの体重表示
                                                     item.type === 'weight' && React.createElement('p', { className: 'text-lg font-bold text-indigo-600' }, item.weight + ' kg'),
                                                     item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
                                                 )

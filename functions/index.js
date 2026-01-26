@@ -1,5 +1,5 @@
 /**
- * 福といっしょ LINE通知機能 Backend (v2.8.0)
+ * 福といっしょ LINE通知機能 Backend (v2.8.1)
  */
 require('dotenv').config();
 const functions = require('firebase-functions/v1');
@@ -192,6 +192,7 @@ exports.onHealthWrite = functions.region('asia-northeast1').firestore
                 const cleanedItems = [];
                 if (newData.isFloorCleaned) cleanedItems.push('床✨');
                 if (newData.isToiletCleaned) cleanedItems.push('トイレ✨');
+                if (newData.isWaterChanged) cleanedItems.push('水交換✨'); // ★飲み水交換を追加
                 const cleanedText = cleanedItems.length > 0 ? `\n詳細: ${cleanedItems.join(', ')}` : '';
                 detail = `${walker}が掃除をしました。${cleanedText}`;
                 break;
@@ -208,7 +209,6 @@ exports.onHealthWrite = functions.region('asia-northeast1').firestore
                 detail = `${walker}が${hospitalName}に連れて行きました。\n理由: ${newData.reason || 'なし'}`;
                 break;
 
-            // ★体重通知を追加
             case 'weight':
                 title = '⚖️ 体重測定';
                 detail = `${walker}が福ちゃんの体重を測りました。\n結果: ${newData.weight}kg`;
