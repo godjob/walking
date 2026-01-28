@@ -1,5 +1,5 @@
 /**
- * 福といっしょ LINE通知機能 Backend (v2.8.1)
+ * 福といっしょ LINE通知機能 Backend (v2.9.1)
  */
 require('dotenv').config();
 const functions = require('firebase-functions/v1');
@@ -94,6 +94,13 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
     .document('walks/{walkId}')
     .onCreate(async (snapshot, context) => {
         const walk = snapshot.data();
+
+        // ★通知がオフに設定されている場合はここで終了
+        if (walk.notify === false) {
+            console.log('通知設定がOFFのため、散歩終了通知をスキップしました。');
+            return null;
+        }
+
         const messages = [];
 
         const dateStr = formatDateTime(walk.startTime);
@@ -192,7 +199,7 @@ exports.onHealthWrite = functions.region('asia-northeast1').firestore
                 const cleanedItems = [];
                 if (newData.isFloorCleaned) cleanedItems.push('床✨');
                 if (newData.isToiletCleaned) cleanedItems.push('トイレ✨');
-                if (newData.isWaterChanged) cleanedItems.push('水交換✨'); // ★飲み水交換を追加
+                if (newData.isWaterChanged) cleanedItems.push('水交換✨');
                 const cleanedText = cleanedItems.length > 0 ? `\n詳細: ${cleanedItems.join(', ')}` : '';
                 detail = `${walker}が掃除をしました。${cleanedText}`;
                 break;

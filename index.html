@@ -12,8 +12,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDmVWeNkaqts5QAqjlSqnlUNhR1HT7Vp38"></script>
     <style>
         /* スクロールバーを隠すためのCSS */
         .no-scrollbar::-webkit-scrollbar {
@@ -30,8 +29,8 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        // ★バージョン更新 v2.8.1
-        const APP_VERSION = 'v2.8.1';
+        // ★バージョン更新 v2.9.1
+        const APP_VERSION = 'v2.9.1';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -294,38 +293,67 @@
         function MapView({ positions, onClose }) {
             const mapRef = useRef(null);
             const mapInstanceRef = useRef(null);
+            const polylineRef = useRef(null);
+
             useEffect(() => {
                 if (!positions || positions.length === 0 || !mapRef.current) return;
+
                 if (!mapInstanceRef.current) {
-                    mapInstanceRef.current = L.map(mapRef.current).setView([positions[0].lat, positions[0].lng], 15);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        attribution: '© OpenStreetMap contributors'
-                    }).addTo(mapInstanceRef.current);
+                    mapInstanceRef.current = new google.maps.Map(mapRef.current, {
+                        center: { lat: positions[0].lat, lng: positions[0].lng },
+                        zoom: 15,
+                        mapTypeId: google.maps.MapTypeId.ROADMAP,
+                        disableDefaultUI: false,
+                        zoomControl: true,
+                        mapTypeControl: false,
+                        streetViewControl: false,
+                        fullscreenControl: false,
+                        scaleControl: true,
+                    });
                 }
-                const latLngs = positions.map(p => [p.lat, p.lng]);
-                L.polyline(latLngs, { color: 'blue', weight: 4 }).addTo(mapInstanceRef.current);
-                if (latLngs.length > 0) {
-                    mapInstanceRef.current.fitBounds(latLngs);
+
+                const map = mapInstanceRef.current;
+                const pathCoordinates = positions.map(p => ({ lat: p.lat, lng: p.lng }));
+
+                if (polylineRef.current) {
+                    polylineRef.current.setMap(null);
                 }
+
+                polylineRef.current = new google.maps.Polyline({
+                    path: pathCoordinates,
+                    geodesic: true,
+                    strokeColor: "#2563EB",
+                    strokeOpacity: 1.0,
+                    strokeWeight: 5,
+                });
+
+                polylineRef.current.setMap(map);
+
+                if (pathCoordinates.length > 0) {
+                    const bounds = new google.maps.LatLngBounds();
+                    pathCoordinates.forEach(coord => bounds.extend(coord));
+                    map.fitBounds(bounds);
+                }
+
                 return () => {
-                    if (mapInstanceRef.current) {
-                        mapInstanceRef.current.remove();
-                        mapInstanceRef.current = null;
+                    if (polylineRef.current) {
+                        polylineRef.current.setMap(null);
                     }
                 };
             }, [positions]);
+
             return React.createElement('div', {
                 className: 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'
             },
                 React.createElement('div', { className: 'bg-white rounded-lg w-full max-w-2xl' },
                     React.createElement('div', { className: 'p-4 border-b flex justify-between items-center' },
-                        React.createElement('h3', { className: 'font-bold text-lg' }, '🗺️ 散歩コース'),
+                        React.createElement('h3', { className: 'font-bold text-lg' }, '🗺️ 散歩コース (Google Maps)'),
                         React.createElement('button', {
                             onClick: onClose,
                             className: 'text-gray-500 hover:text-gray-700 text-2xl'
                         }, '×')
                     ),
-                    React.createElement('div', { ref: mapRef, className: 'w-full h-96' })
+                    React.createElement('div', { ref: mapRef, className: 'w-full h-96 rounded-b-lg' })
                 )
             );
         }
@@ -661,7 +689,6 @@
                 ),
                 type === 'cleaning' && React.createElement('div', null,
                     React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '実施した内容'),
-                    // ★flex-wrapを追加して飲み水交換を追加
                     React.createElement('div', { className: 'flex gap-4 mt-2 flex-wrap' },
                         React.createElement('label', { className: 'flex items-center' },
                             React.createElement('input', {
@@ -677,7 +704,6 @@
                                 className: 'mr-2 w-5 h-5'
                             }), 'トイレ掃除'
                         ),
-                        // ★飲み水交換チェックボックス追加
                         React.createElement('label', { className: 'flex items-center' },
                             React.createElement('input', {
                                 type: 'checkbox', checked: formData.isWaterChanged,
@@ -762,6 +788,10 @@
             const stationaryTimeRef = useRef(0);
             const lastPositionRef = useRef(null);
             const [showWalkSetup, setShowWalkSetup] = useState(false);
+            
+            // ★独立した通知設定 (初期値: ON)
+            const [notifyStart, setNotifyStart] = useState(true);
+            const [notifyEnd, setNotifyEnd] = useState(true);
 
             const [healthFormData, setHealthFormData] = useState({});
             const [originalHealthData, setOriginalHealthData] = useState({});
@@ -869,7 +899,6 @@
                     foodAmount: record?.foodAmount || 3,
                     isFloorCleaned: record?.isFloorCleaned || false,
                     isToiletCleaned: record?.isToiletCleaned || false,
-                    // ★isWaterChanged初期化
                     isWaterChanged: record?.isWaterChanged || false,
                     weight: record?.weight || '',
                     memo: record?.memo || '',
@@ -978,10 +1007,15 @@
                         setPhotos([]);
                         setNow(new Date());
 
-                        const notifyWalkStart = functions.httpsCallable('notifyWalkStart');
-                        notifyWalkStart({ walkers: selectedWalkers })
-                            .then(() => console.log('LINE通知送信成功'))
-                            .catch(err => console.error('LINE通知送信失敗', err));
+                        // ★LINE通知（チェックされている場合のみ）
+                        if (notifyStart) {
+                            const notifyWalkStart = functions.httpsCallable('notifyWalkStart');
+                            notifyWalkStart({ walkers: selectedWalkers })
+                                .then(() => console.log('LINE通知送信成功'))
+                                .catch(err => console.error('LINE通知送信失敗', err));
+                        } else {
+                            console.log('LINE通知はスキップされました');
+                        }
 
                         const weatherData = await fetchWeatherData(position.coords.latitude, position.coords.longitude);
                         if (weatherData) {
@@ -1045,7 +1079,9 @@
                     pooFirmness: currentWalk.poo ? currentWalk.pooFirmness : null,
                     energy: currentWalk.energy,
                     water: currentWalk.water,
-                    memo: currentWalk.memo, photos: photos, positions: currentWalk.positions, weather: currentWalk.weather || null
+                    memo: currentWalk.memo, photos: photos, positions: currentWalk.positions, weather: currentWalk.weather || null,
+                    // ★通知フラグを保存
+                    notify: notifyEnd
                 });
             };
 
@@ -1313,6 +1349,19 @@
                             React.createElement('label', { className: 'block text-sm font-medium mb-2' }, 'メモ'),
                             React.createElement('textarea', { value: currentWalk?.memo || '', onChange: (e) => setCurrentWalk({ ...currentWalk, memo: e.target.value }), className: 'w-full p-2 border rounded-lg', rows: 3, placeholder: '気づいたことをメモ...' })
                         ),
+
+                        // ★終了時の通知チェックボックスを追加
+                        React.createElement('div', { className: 'flex items-center mb-2' },
+                            React.createElement('input', {
+                                type: 'checkbox',
+                                id: 'notify-end-check',
+                                checked: notifyEnd,
+                                onChange: (e) => setNotifyEnd(e.target.checked),
+                                className: 'w-5 h-5 text-blue-600 rounded focus:ring-blue-500 mr-2'
+                            }),
+                            React.createElement('label', { htmlFor: 'notify-end-check', className: 'text-sm font-bold text-gray-700' }, '終了をLINEで通知する')
+                        ),
+
                         React.createElement('button', { onClick: () => { if (confirm('散歩を終了しますか？')) endWalk(); }, disabled: uploadingPhotos, className: `w-full py-4 rounded-lg text-xl font-bold shadow-md ${uploadingPhotos ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}` }, uploadingPhotos ? '写真アップロード中...' : '🏁 散歩終了')
                     ) : showWalkSetup ? React.createElement('div', { className: 'space-y-4' },
                         React.createElement('h3', { className: 'font-bold text-lg' }, '🚶 散歩の準備'),
@@ -1325,6 +1374,19 @@
                             ),
                             selectedWalkers.length > 0 && React.createElement('p', { className: 'text-sm text-gray-600 mt-2' }, '選択中: ' + selectedWalkers.join(', '))
                         ),
+
+                        // ★開始時の通知チェックボックスを追加
+                        React.createElement('div', { className: 'flex items-center mb-2' },
+                            React.createElement('input', {
+                                type: 'checkbox',
+                                id: 'notify-start-check',
+                                checked: notifyStart,
+                                onChange: (e) => setNotifyStart(e.target.checked),
+                                className: 'w-5 h-5 text-blue-600 rounded focus:ring-blue-500 mr-2'
+                            }),
+                            React.createElement('label', { htmlFor: 'notify-start-check', className: 'text-sm font-bold text-gray-700' }, '開始をLINEで通知する')
+                        ),
+
                         React.createElement('div', { className: 'flex gap-2' },
                             React.createElement('button', { onClick: startWalk, className: 'flex-1 bg-green-500 text-white py-3 rounded-lg text-lg font-bold shadow' }, '開始'),
                             React.createElement('button', { onClick: () => setShowWalkSetup(false), className: 'flex-1 bg-gray-300 text-black py-3 rounded-lg text-lg font-bold' }, 'キャンセル')
