@@ -1,6 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Note: Public read access is required because the frontend (index.html) does not implement Authentication.
+    // Ideally, this should be restricted to authenticated users (request.auth != null) if Auth is added in the future.
     match /walks/{walkId} {
       allow read: if true;
       // Basic schema validation: ensure 'walkers' and 'startTime' fields exist on write
@@ -16,8 +18,8 @@ service cloud.firestore {
       allow write: if true;
     }
     match /line_users/{userId} {
-      allow read: if true;
-      allow write: if true;
+      // Only accessed by Admin SDK (backend)
+      allow read, write: if false;
     }
     match /{document=**} {
       allow read, write: if false;

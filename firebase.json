@@ -29,7 +29,9 @@
       "firestore.rules",
       "storage.rules",
       "firestore.indexes.json",
-      "README.md"
+      "README.md",
+      "package.json",
+      "package-lock.json"
     ],
     "headers": [
       {
