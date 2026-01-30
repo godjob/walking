@@ -6,8 +6,11 @@
 
 * **`index.html`**: フロントエンドアプリケーションの全コードが含まれています。React (CDN) を使用した SPA として実装されており、ビルドプロセスなしで動作します。
 * **`functions/`**: Firebase Cloud Functions のバックエンドコードが格納されています。
-    * `index.js`: LINE 通知ロジックやトリガー関数が記述されています。
-* **`firebase.json`**: Firebase Hosting, Functions, Firestore, Storage の設定ファイルです。
+    * `index.js`: LINE 通知ロジックやトリガー関数が記述されています (Cloud Functions v1)。
+* **`firebase.json`**: Firebase Hosting, Functions, Firestore, Storage の統合設定ファイルです。
+* **`firestore.rules`**: データベースのセキュリティルール定義。
+* **`storage.rules`**: 画像保存（Storage）のセキュリティルール定義。
+* **`firestore.indexes.json`**: データベースのインデックス設定。
 
 ## ✨ 機能一覧
 
@@ -25,12 +28,26 @@
     * お世話記録が作成・更新された際に詳細を通知。
 * **ユーザー管理**: LINE Webhook を通じたユーザー登録処理。
 
+## 🛡️ セキュリティと設定
+
+Firebase のベストプラクティスに基づき、以下の設定を行っています。
+
+* **Firestore ルール (`firestore.rules`)**:
+    * フロントエンドからの書き込み時に、必要なデータ項目が含まれているかを検証します。
+    * バックエンド専用のデータ（`line_users`）へのパブリックアクセスを遮断しています。
+* **Storage ルール (`storage.rules`)**:
+    * アップロードできるファイルを画像のみに制限しています。
+    * ファイルサイズを最大 5MB に制限し、ストレージの乱用を防ぎます。
+* **Hosting 設定 (`firebase.json`)**:
+    * `package.json` やバックエンドのソースコードが誤って公開されないよう、厳格な `ignore` 設定を行っています。
+    * `Cache-Control` ヘッダーを設定し、フロントエンドのパフォーマンスを最適化しています。
+
 ## 🗄️ データモデル (Firestore)
 
 * **`walks`**: 散歩の記録（開始・終了時刻、経路、距離、天気、写真など）。
 * **`health`**: お世話の記録（種類、日時、担当者、詳細データ）。
 * **`walkers`**: 散歩を担当する家族メンバーのリスト。
-* **`line_users`**: 通知を受け取る LINE ユーザー情報。
+* **`line_users`**: 通知を受け取る LINE ユーザー情報 (バックエンドのみアクセス可)。
 
 ## 🛠 システムの仕組み・使用技術
 
@@ -53,10 +70,11 @@
     * Tailwind CSS (CDN) - UIスタイリング
     * Google Maps JavaScript API - 地図表示
 * **バックエンド:**
-    * Firebase Cloud Functions (Node.js)
+    * Firebase Cloud Functions v1 (Node.js)
     * LINE Messaging API - 通知機能
 * **インフラ:**
     * Firebase (Hosting, Firestore, Storage, Authentication)
+    * Infrastructure as Code (firestore.rules, storage.rules, indexes)
 
 ---
 *最終更新: 2026/01/22*
