@@ -1,5 +1,5 @@
 /**
- * 福といっしょ LINE通知機能 Backend (v2.9.2 - Reverted to v1 for stability)
+ * 福といっしょ LINE通知機能 Backend (v2.9.2 - Stabilized v1)
  */
 require('dotenv').config();
 const functions = require('firebase-functions/v1');
