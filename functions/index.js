@@ -9,10 +9,11 @@ const line = require('@line/bot-sdk');
 admin.initializeApp();
 const db = admin.firestore();
 
-const lineConfig = functions.config().line || {};
+// 【修正後のコード（○ これで動きます）】
+// 古い config 読み込み行は削除します
 const config = {
-    channelAccessToken: lineConfig.access_token || process.env.LINE_CHANNEL_ACCESS_TOKEN,
-    channelSecret: lineConfig.channel_secret || process.env.LINE_CHANNEL_SECRET,
+    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+    channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
 
 if (!config.channelAccessToken || !config.channelSecret) {
