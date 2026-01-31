@@ -29,8 +29,8 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        // ★バージョン更新 v2.9.1
-        const APP_VERSION = 'v2.9.1';
+        // ★バージョン更新 v2.9.3
+        const APP_VERSION = 'v2.9.3';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -1012,7 +1012,10 @@
                             const notifyWalkStart = functions.httpsCallable('notifyWalkStart');
                             notifyWalkStart({ walkers: selectedWalkers })
                                 .then(() => console.log('LINE通知送信成功'))
-                                .catch(err => console.error('LINE通知送信失敗', err));
+                                .catch(err => {
+                                    console.error('LINE通知送信失敗', err);
+                                    alert('LINE通知送信失敗: ' + err.message);
+                                });
                         } else {
                             console.log('LINE通知はスキップされました');
                         }

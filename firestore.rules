@@ -5,13 +5,15 @@ service cloud.firestore {
     // Ideally, this should be restricted to authenticated users (request.auth != null) if Auth is added in the future.
     match /walks/{walkId} {
       allow read: if true;
-      // Basic schema validation: ensure 'walkers' and 'startTime' fields exist on write
-      allow write: if request.resource.data.keys().hasAll(['walkers', 'startTime']);
+      // Basic schema validation for create and update
+      allow create, update: if request.resource.data.keys().hasAll(['walkers', 'startTime']);
+      allow delete: if true;
     }
     match /health/{healthId} {
       allow read: if true;
-      // Basic schema validation: ensure 'type', 'date', and 'walker' fields exist on write
-      allow write: if request.resource.data.keys().hasAll(['type', 'date', 'walker']);
+      // Basic schema validation for create and update
+      allow create, update: if request.resource.data.keys().hasAll(['type', 'date', 'walker']);
+      allow delete: if true;
     }
     match /walkers/{walkerId} {
       allow read: if true;
