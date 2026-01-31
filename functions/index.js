@@ -36,13 +36,14 @@ async function broadcastToFamily(messages) {
         const snapshot = await db.collection('line_users').get();
         if (snapshot.empty) {
             console.log('LINE通知先が登録されていません。');
-            return;
+            throw new Error('LINE通知先が登録されていません。');
         }
         const userIds = snapshot.docs.map(doc => doc.id);
         await client.multicast(userIds, messages);
         console.log(`${userIds.length}人にLINE通知を送信しました。`);
     } catch (error) {
         console.error('LINE送信エラー:', error);
+        throw error;
     }
 }
 
@@ -86,8 +87,14 @@ exports.notifyWalkStart = functions.region('asia-northeast1').https.onCall(async
         type: 'text',
         text: `🐕 散歩スタート！\n${dateStr}\n\n${walkersText}が福くんの散歩に出発しました💨\nいってらっしゃい！`
     };
-    await broadcastToFamily([message]);
-    return { success: true };
+
+    try {
+        await broadcastToFamily([message]);
+        return { success: true };
+    } catch (error) {
+        console.error('notifyWalkStartエラー:', error);
+        throw new functions.https.HttpsError('internal', 'LINE通知の送信に失敗しました。', error.message);
+    }
 });
 
 exports.onWalkCreated = functions.region('asia-northeast1').firestore
