@@ -9,10 +9,15 @@ const line = require('@line/bot-sdk');
 admin.initializeApp();
 const db = admin.firestore();
 
+const lineConfig = functions.config().line || {};
 const config = {
-    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-    channelSecret: process.env.LINE_CHANNEL_SECRET,
+    channelAccessToken: lineConfig.access_token || process.env.LINE_CHANNEL_ACCESS_TOKEN,
+    channelSecret: lineConfig.channel_secret || process.env.LINE_CHANNEL_SECRET,
 };
+
+if (!config.channelAccessToken || !config.channelSecret) {
+    console.error('LINE Channel Access TokenまたはSecretが設定されていません。functions:config:set line.access_token="..." line.channel_secret="..." を実行するか、.envファイルを確認してください。');
+}
 
 const client = new line.Client(config);
 
