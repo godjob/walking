@@ -29,8 +29,8 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        // ★バージョン更新 v2.9.3
-        const APP_VERSION = 'v2.9.3';
+        // ★バージョン更新 v2.9.4
+        const APP_VERSION = 'v2.9.4';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -789,9 +789,9 @@
             const lastPositionRef = useRef(null);
             const [showWalkSetup, setShowWalkSetup] = useState(false);
             
-            // ★独立した通知設定 (初期値: ON)
-            const [notifyStart, setNotifyStart] = useState(true);
-            const [notifyEnd, setNotifyEnd] = useState(true);
+            // ★独立した通知設定 (初期値: OFF)
+            const [notifyStart, setNotifyStart] = useState(false);
+            const [notifyEnd, setNotifyEnd] = useState(false);
 
             const [healthFormData, setHealthFormData] = useState({});
             const [originalHealthData, setOriginalHealthData] = useState({});
@@ -903,7 +903,7 @@
                     weight: record?.weight || '',
                     memo: record?.memo || '',
                     photos: record?.photos || [],
-                    notify: true
+                    notify: false
                 };
                 setHealthFormData(initialData);
                 setOriginalHealthData(initialData);
