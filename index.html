@@ -1075,18 +1075,31 @@
 
                         setCurrentWalk(prev => {
                             if (!prev) return null;
+
                             // 移動距離判定 (前回の「有効な移動」位置から)
                             if (lastPositionRef.current) {
                                 const dist = calculateDistance(lastPositionRef.current.lat, lastPositionRef.current.lng, newPos.lat, newPos.lng);
-                                if (dist > 5) { // 5m以上移動したら「動いている」とみなす
+                                const timeDiff = (newPos.time - lastPositionRef.current.time) / 1000; // 秒
+
+                                // ★異常な移動速度（時速約60km以上 = 16.6m/s）は無視（GPS飛び対策）
+                                if (timeDiff > 0 && (dist / timeDiff) > 16.6) {
+                                    console.warn("GPS Jump detected:", dist, "m in", timeDiff, "s");
+                                    return prev;
+                                }
+
+                                if (dist > 5) { // 5m以上移動したら「有効な移動」とみなす
                                     lastMoveTimeRef.current = Date.now();
                                     lastPositionRef.current = newPos;
+                                    return { ...prev, positions: [...prev.positions, newPos] };
                                 }
                             } else {
                                 lastPositionRef.current = newPos;
                                 lastMoveTimeRef.current = Date.now();
+                                return { ...prev, positions: [...prev.positions, newPos] };
                             }
-                            return { ...prev, positions: [...prev.positions, newPos] };
+
+                            // 移動が少なすぎる場合は更新しない
+                            return prev;
                         });
                     },
                     (err) => console.error('GPS Watch Error:', err),
