@@ -1294,55 +1294,58 @@
                     React.createElement('h3', { className: 'font-bold mb-2 text-lg flex items-center' }, React.createElement('span', { className: 'mr-2' }, '🕒'), '福のお世話'),
                     React.createElement('div', { className: 'space-y-3 max-h-96 overflow-y-auto pr-1' },
                         allRecords.length === 0 ? React.createElement('p', { className: 'text-center text-gray-500 mt-4' }, 'まだ記録がありません') :
-                            displayedHomeRecords.map(item => item.type === 'walk' ?
-                                React.createElement('div', { key: 'w-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
-                                    React.createElement('div', { className: 'flex justify-between items-start mb-2' },
-                                        React.createElement('div', { className: 'flex-1' },
-                                            React.createElement('p', { className: 'font-bold text-lg' }, '🚶 散歩 (' + (Array.isArray(item.walkers) ? item.walkers.join(', ') : item.walkers) + ')'),
-                                            React.createElement('div', { className: 'flex gap-1 mt-1' },
-                                                item.pee && React.createElement('span', { className: 'text-lg' }, '💧'),
-                                                item.poo && React.createElement('span', { className: 'text-lg' }, '💩' + (item.pooFirmness ? getFirmnessEmoji(item.pooFirmness) : '')),
-                                                item.water && React.createElement('span', { className: 'text-lg' }, '🥤')
+                            displayedHomeRecords.map((record) => {
+                                if (record.type === 'walk') {
+                                    return React.createElement('div', { key: 'w-' + record.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
+                                        React.createElement('div', { className: 'flex justify-between items-start mb-2' },
+                                            React.createElement('div', { className: 'flex-1' },
+                                                React.createElement('p', { className: 'font-bold text-lg' }, '🚶 散歩 (' + (Array.isArray(record.walkers) ? record.walkers.join(', ') : record.walkers) + ')'),
+                                                React.createElement('div', { className: 'flex gap-1 mt-1' },
+                                                    record.pee && React.createElement('span', { className: 'text-lg' }, '💧'),
+                                                    record.poo && React.createElement('span', { className: 'text-lg' }, '💩' + (record.pooFirmness ? getFirmnessEmoji(record.pooFirmness) : '')),
+                                                    record.water && React.createElement('span', { className: 'text-lg' }, '🥤')
+                                                )
+                                            ),
+                                            React.createElement('div', { className: 'text-right flex flex-col items-end pl-2' },
+                                                React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, formatRelativeTime(record.startTime)),
+                                                React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, '⏱️' + record.duration + '分 📍' + (record.distance / 1000).toFixed(2) + 'km'),
+                                                record.energy && React.createElement('div', { className: 'text-xs font-bold text-orange-500 mt-1' }, '元気: ' + getEnergyLabel(record.energy)),
+                                                record.weather && React.createElement('div', { className: 'text-xs text-gray-600 font-medium mt-1' }, `${getWeatherEmoji(record.weather.icon)} ${record.weather.temp}℃ 💨${record.weather.wind}m`)
                                             )
                                         ),
-                                        React.createElement('div', { className: 'text-right flex flex-col items-end pl-2' },
-                                            React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, formatRelativeTime(item.startTime)),
-                                            React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, '⏱️' + item.duration + '分 📍' + (item.distance / 1000).toFixed(2) + 'km'),
-                                            item.energy && React.createElement('div', { className: 'text-xs font-bold text-orange-500 mt-1' }, '元気: ' + getEnergyLabel(item.energy)),
-                                            item.weather && React.createElement('div', { className: 'text-xs text-gray-600 font-medium mt-1' }, `${getWeatherEmoji(item.weather.icon)} ${item.weather.temp}℃ 💨${item.weather.wind}m`)
+                                        React.createElement('div', null,
+                                            record.memo && React.createElement('div', { className: 'text-sm text-gray-600 mb-1 bg-gray-50 p-1 rounded' }, record.memo),
+                                            record.photos && record.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 mb-2 overflow-x-auto' },
+                                                record.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
+                                            )
                                         )
-                                    ),
-                                    React.createElement('div', null,
-                                        item.memo && React.createElement('div', { className: 'text-sm text-gray-600 mb-1 bg-gray-50 p-1 rounded' }, item.memo),
-                                        item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 mb-2 overflow-x-auto' },
-                                            item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
+                                    );
+                                } else {
+                                    return React.createElement('div', { key: 'h-' + record.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
+                                        React.createElement('div', { className: 'flex justify-between items-start mb-2' },
+                                            React.createElement('div', null, React.createElement('p', { className: 'font-bold text-lg' }, (record.type === 'hospital' ? '🏥 病院' : record.type === 'grooming' ? '✂️ 散髪' : record.type === 'bath' ? '🛁 入浴' : record.type === 'brushing' ? '✨ ブラッシング' : record.type === 'cleaning' ? '🧹 掃除' : record.type === 'weight' ? '⚖️ 体重' : record.type === 'food' ? '🥣 ご飯' : record.type === 'excretion' ? '💩 排泄' : '💊 薬') + ' (' + record.walker + ')')),
+                                            React.createElement('div', { className: 'text-right' }, React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatRelativeTime(record.date)))
+                                        ),
+                                        React.createElement('div', { className: 'mb-2' },
+                                            record.photos && record.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mb-2 overflow-x-auto' },
+                                                record.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
+                                            ),
+                                            record.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + record.hospitalName),
+                                            record.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + record.medicineType),
+                                            record.type === 'excretion' && record.pooFirmness && React.createElement('p', { className: 'text-sm' }, '硬さ: ' + getFirmnessEmoji(record.pooFirmness)),
+                                            record.type === 'food' && record.foodAmount && React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][record.foodAmount] || '普通') + ` (${record.foodAmount}/5)`),
+                                            record.type === 'cleaning' && React.createElement('div', { className: 'text-sm flex gap-2 mt-1 flex-wrap' },
+                                                record.isFloorCleaned && React.createElement('span', { className: 'bg-green-100 px-2 py-0.5 rounded text-green-800' }, '床: 済'),
+                                                record.isToiletCleaned && React.createElement('span', { className: 'bg-blue-100 px-2 py-0.5 rounded text-blue-800' }, 'トイレ: 済'),
+                                                // ★飲み水交換バッジ表示 (ホーム)
+                                                record.isWaterChanged && React.createElement('span', { className: 'bg-cyan-100 px-2 py-0.5 rounded text-cyan-800' }, '水: 済')
+                                            ),
+                                            record.type === 'weight' && React.createElement('p', { className: 'text-lg font-bold text-blue-600' }, record.weight + ' kg'),
+                                            record.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, record.memo)
                                         )
-                                    )
-                                ) :
-                                React.createElement('div', { key: 'h-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
-                                    React.createElement('div', { className: 'flex justify-between items-start mb-2' },
-                                        React.createElement('div', null, React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'cleaning' ? '🧹 掃除' : item.type === 'weight' ? '⚖️ 体重' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : '💊 薬') + ' (' + item.walker + ')')),
-                                        React.createElement('div', { className: 'text-right' }, React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatRelativeTime(item.date)))
-                                    ),
-                                    React.createElement('div', { className: 'mb-2' },
-                                        item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mb-2 overflow-x-auto' },
-                                            item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
-                                        ),
-                                        item.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + item.hospitalName),
-                                        item.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + item.medicineType),
-                                        item.type === 'excretion' && item.pooFirmness && React.createElement('p', { className: 'text-sm' }, '硬さ: ' + getFirmnessEmoji(item.pooFirmness)),
-                                        item.type === 'food' && item.foodAmount && React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][item.foodAmount] || '普通') + ` (${item.foodAmount}/5)`),
-                                        item.type === 'cleaning' && React.createElement('div', { className: 'text-sm flex gap-2 mt-1 flex-wrap' },
-                                            item.isFloorCleaned && React.createElement('span', { className: 'bg-green-100 px-2 py-0.5 rounded text-green-800' }, '床: 済'),
-                                            item.isToiletCleaned && React.createElement('span', { className: 'bg-blue-100 px-2 py-0.5 rounded text-blue-800' }, 'トイレ: 済'),
-                                            // ★飲み水交換バッジ表示 (ホーム)
-                                            item.isWaterChanged && React.createElement('span', { className: 'bg-cyan-100 px-2 py-0.5 rounded text-cyan-800' }, '水: 済')
-                                        ),
-                                        item.type === 'weight' && React.createElement('p', { className: 'text-lg font-bold text-blue-600' }, item.weight + ' kg'),
-                                        item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
-                                    )
-                                )
-                            ),
+                                    );
+                                }
+                            }),
                         React.createElement(PaginationControls, {
                             currentPage: homePage,
                             totalPages: homeTotalPages,
@@ -1508,68 +1511,71 @@
                         React.createElement('h3', { className: 'font-bold mb-3' }, 'お世話したよ'),
                         React.createElement('div', { className: 'space-y-3' },
                             allRecords.length === 0 ? React.createElement('p', { className: 'text-center text-gray-500 mt-4' }, '記録がありません') :
-                                displayedHealthRecords.map(item => item.type === 'walk' ?
-                                    React.createElement('div', { key: 'w-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
-                                        React.createElement('div', { className: 'flex justify-between items-start mb-2' },
-                                            React.createElement('div', { className: 'flex-1' },
-                                                React.createElement('p', { className: 'font-bold text-lg' }, '🚶 散歩 (' + (Array.isArray(item.walkers) ? item.walkers.join(', ') : item.walkers) + ')'),
-                                                React.createElement('div', { className: 'flex gap-1 mt-1' },
-                                                    item.pee && React.createElement('span', { className: 'text-lg' }, '💧'),
-                                                    item.poo && React.createElement('span', { className: 'text-lg' }, '💩' + (item.pooFirmness ? getFirmnessEmoji(item.pooFirmness) : '')),
-                                                    item.water && React.createElement('span', { className: 'text-lg' }, '🥤')
+                                displayedHealthRecords.map((record) => {
+                                    if (record.type === 'walk') {
+                                        return React.createElement('div', { key: 'w-' + record.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
+                                            React.createElement('div', { className: 'flex justify-between items-start mb-2' },
+                                                React.createElement('div', { className: 'flex-1' },
+                                                    React.createElement('p', { className: 'font-bold text-lg' }, '🚶 散歩 (' + (Array.isArray(record.walkers) ? record.walkers.join(', ') : record.walkers) + ')'),
+                                                    React.createElement('div', { className: 'flex gap-1 mt-1' },
+                                                        record.pee && React.createElement('span', { className: 'text-lg' }, '💧'),
+                                                        record.poo && React.createElement('span', { className: 'text-lg' }, '💩' + (record.pooFirmness ? getFirmnessEmoji(record.pooFirmness) : '')),
+                                                        record.water && React.createElement('span', { className: 'text-lg' }, '🥤')
+                                                    )
+                                                ),
+                                                React.createElement('div', { className: 'text-right flex flex-col items-end pl-2' },
+                                                    React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, formatRelativeTime(record.startTime)),
+                                                    React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, '⏱️' + record.duration + '分 📍' + (record.distance / 1000).toFixed(2) + 'km'),
+                                                    record.energy && React.createElement('div', { className: 'text-xs font-bold text-orange-500 mt-1' }, '元気: ' + getEnergyLabel(record.energy)),
+                                                    record.weather && React.createElement('div', { className: 'text-xs text-gray-600 font-medium mt-1' }, `${getWeatherEmoji(record.weather.icon)} ${record.weather.temp}℃ 💨${record.weather.wind}m`)
                                                 )
                                             ),
-                                            React.createElement('div', { className: 'text-right flex flex-col items-end pl-2' },
-                                                React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, formatRelativeTime(item.startTime)),
-                                                React.createElement('div', { className: 'text-xs text-gray-500 font-bold' }, '⏱️' + item.duration + '分 📍' + (item.distance / 1000).toFixed(2) + 'km'),
-                                                item.energy && React.createElement('div', { className: 'text-xs font-bold text-orange-500 mt-1' }, '元気: ' + getEnergyLabel(item.energy)),
-                                                item.weather && React.createElement('div', { className: 'text-xs text-gray-600 font-medium mt-1' }, `${getWeatherEmoji(item.weather.icon)} ${item.weather.temp}℃ 💨${item.weather.wind}m`)
-                                            )
-                                        ),
-                                        React.createElement('div', null,
-                                            item.memo && React.createElement('div', { className: 'text-sm text-gray-600 mb-1 bg-gray-50 p-1 rounded' }, item.memo),
-                                            item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 mb-2 overflow-x-auto' },
-                                                item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
-                                            ),
-                                            React.createElement('div', { className: 'flex justify-end gap-2' },
-                                                item.positions && item.positions.length > 0 && React.createElement('button', { onClick: () => setShowMap(item.positions), className: 'px-3 py-1 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded text-xs font-bold' }, '地図'),
-                                                React.createElement('button', { onClick: () => setEditingWalk(item), className: 'px-3 py-1 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded text-xs font-bold' }, '編集'),
-                                                React.createElement('button', { onClick: () => deleteWalk(item.id), className: 'px-3 py-1 text-red-600 bg-red-50 hover:bg-red-100 rounded text-xs font-bold' }, '削除')
-                                            )
-                                        )
-                                    ) :
-                                    React.createElement('div', { key: 'h-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
-                                        React.createElement('div', { className: 'flex justify-between items-start' },
-                                            React.createElement('div', { className: 'flex-1' },
-                                                React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'cleaning' ? '🧹 掃除' : item.type === 'weight' ? '⚖️ 体重' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : '💊 薬') + ' (' + item.walker + ')')),
-                                                React.createElement('div', { className: 'mt-1' },
-                                                    item.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + item.hospitalName),
-                                                    item.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + item.medicineType),
-                                                    item.type === 'excretion' && item.pooFirmness && React.createElement('p', { className: 'text-sm' }, '硬さ: ' + getFirmnessEmoji(item.pooFirmness)),
-                                                    item.type === 'food' && item.foodAmount && React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][item.foodAmount] || '普通') + ` (${item.foodAmount}/5)`),
-                                                    item.type === 'cleaning' && React.createElement('div', { className: 'text-sm flex gap-2 mt-1 flex-wrap' },
-                                                        item.isFloorCleaned && React.createElement('span', { className: 'bg-green-100 px-2 py-0.5 rounded text-green-800' }, '床: 済'),
-                                                        item.isToiletCleaned && React.createElement('span', { className: 'bg-blue-100 px-2 py-0.5 rounded text-blue-800' }, 'トイレ: 済'),
-                                                        // ★飲み水交換バッジ表示 (お世話)
-                                                        item.isWaterChanged && React.createElement('span', { className: 'bg-cyan-100 px-2 py-0.5 rounded text-cyan-800' }, '水: 済')
-                                                    ),
-                                                    item.type === 'weight' && React.createElement('p', { className: 'text-lg font-bold text-indigo-600' }, item.weight + ' kg'),
-                                                    item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
-                                                )
-                                            ),
-                                            React.createElement('div', { className: 'text-right flex flex-col justify-between items-end gap-2' },
-                                                React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatRelativeTime(item.date)),
-                                                React.createElement('div', { className: 'flex gap-2' },
-                                                    React.createElement('button', { onClick: () => initHealthForm(item.type, item), className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded' }, '編集'),
-                                                    React.createElement('button', { onClick: () => deleteHealthRecord(item.id), className: 'text-red-500 text-xs px-2 py-1' }, '削除')
+                                            React.createElement('div', null,
+                                                record.memo && React.createElement('div', { className: 'text-sm text-gray-600 mb-1 bg-gray-50 p-1 rounded' }, record.memo),
+                                                record.photos && record.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 mb-2 overflow-x-auto' },
+                                                    record.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
+                                                ),
+                                                React.createElement('div', { className: 'flex justify-end gap-2' },
+                                                    record.positions && record.positions.length > 0 && React.createElement('button', { onClick: () => setShowMap(record.positions), className: 'px-3 py-1 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded text-xs font-bold' }, '地図'),
+                                                    React.createElement('button', { onClick: () => setEditingWalk(record), className: 'px-3 py-1 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded text-xs font-bold' }, '編集'),
+                                                    React.createElement('button', { onClick: () => deleteWalk(record.id), className: 'px-3 py-1 text-red-600 bg-red-50 hover:bg-red-100 rounded text-xs font-bold' }, '削除')
                                                 )
                                             )
-                                        ),
-                                        item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 overflow-x-auto' },
-                                            item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
-                                        )
-                                    )
-                        ),
+                                        );
+                                    } else {
+                                        return React.createElement('div', { key: 'h-' + record.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
+                                            React.createElement('div', { className: 'flex justify-between items-start' },
+                                                React.createElement('div', { className: 'flex-1' },
+                                                    React.createElement('p', { className: 'font-bold text-lg' }, (record.type === 'hospital' ? '🏥 病院' : record.type === 'grooming' ? '✂️ 散髪' : record.type === 'bath' ? '🛁 入浴' : record.type === 'brushing' ? '✨ ブラッシング' : record.type === 'cleaning' ? '🧹 掃除' : record.type === 'weight' ? '⚖️ 体重' : record.type === 'food' ? '🥣 ご飯' : record.type === 'excretion' ? '💩 排泄' : '💊 薬') + ' (' + record.walker + ')')),
+                                                    React.createElement('div', { className: 'mt-1' },
+                                                        record.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + record.hospitalName),
+                                                        record.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + record.medicineType),
+                                                        record.type === 'excretion' && record.pooFirmness && React.createElement('p', { className: 'text-sm' }, '硬さ: ' + getFirmnessEmoji(record.pooFirmness)),
+                                                        record.type === 'food' && record.foodAmount && React.createElement('p', { className: 'text-sm' }, '残量: ' + (['', '空っぽ', '少し', '普通', '多め', '満杯'][record.foodAmount] || '普通') + ` (${record.foodAmount}/5)`),
+                                                        record.type === 'cleaning' && React.createElement('div', { className: 'text-sm flex gap-2 mt-1 flex-wrap' },
+                                                            record.isFloorCleaned && React.createElement('span', { className: 'bg-green-100 px-2 py-0.5 rounded text-green-800' }, '床: 済'),
+                                                            record.isToiletCleaned && React.createElement('span', { className: 'bg-blue-100 px-2 py-0.5 rounded text-blue-800' }, 'トイレ: 済'),
+                                                            // ★飲み水交換バッジ表示 (お世話)
+                                                            record.isWaterChanged && React.createElement('span', { className: 'bg-cyan-100 px-2 py-0.5 rounded text-cyan-800' }, '水: 済')
+                                                        ),
+                                                        record.type === 'weight' && React.createElement('p', { className: 'text-lg font-bold text-indigo-600' }, record.weight + ' kg'),
+                                                        record.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, record.memo)
+                                                    )
+                                                ),
+                                                React.createElement('div', { className: 'text-right flex flex-col justify-between items-end gap-2' },
+                                                    React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatRelativeTime(record.date)),
+                                                    React.createElement('div', { className: 'flex gap-2' },
+                                                        React.createElement('button', { onClick: () => initHealthForm(record.type, record), className: 'text-blue-500 text-xs font-bold border border-blue-200 px-2 py-1 rounded' }, '編集'),
+                                                        React.createElement('button', { onClick: () => deleteHealthRecord(record.id), className: 'text-red-500 text-xs px-2 py-1' }, '削除')
+                                                    )
+                                                )
+                                            ),
+                                            record.photos && record.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 overflow-x-auto' },
+                                                record.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
+                                            )
+                                        );
+                                    }
+                                }),
                         React.createElement(PaginationControls, {
                             currentPage: healthPage,
                             totalPages: healthTotalPages,
