@@ -916,11 +916,11 @@
 
                 return React.createElement('div', { className: 'bg-white p-2 rounded text-center' },
                     React.createElement('p', { className: 'text-[10px] text-gray-600' }, label),
-                    React.createElement('p', { className: `text-lg font-bold ${mainColor}` },
+                    React.createElement('p', { className: `text-[13px] font-bold ${mainColor} whitespace-nowrap leading-none tracking-tighter` },
                         currentVal,
-                        React.createElement('span', { className: 'text-xs text-gray-400 ml-0.5' }, unit)
+                        React.createElement('span', { className: 'text-gray-400 ml-0.5' }, unit)
                     ),
-                    React.createElement('p', { className: `text-[10px] font-bold ${diffColor}` },
+                    React.createElement('p', { className: `text-[9px] font-bold whitespace-nowrap tracking-tighter ${diffColor}` },
                         `(${diffStr}${unit})`
                     )
                 );
