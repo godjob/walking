@@ -34,8 +34,8 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        // ★バージョン更新 v2.9.4
-        const APP_VERSION = 'v2.9.4';
+        // ★バージョン更新 v2.9.5
+        const APP_VERSION = 'v2.9.5';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -790,10 +790,14 @@
             const [showMap, setShowMap] = useState(null);
             const [viewingPhoto, setViewingPhoto] = useState(null);
             const [now, setNow] = useState(new Date());
-            const stationaryTimeRef = useRef(0);
-            const lastPositionRef = useRef(null);
+            const watchIdRef = useRef(null);
+            const wakeLockRef = useRef(null);
+            const stopCheckIntervalRef = useRef(null);
+            const [lastPositionTime, setLastPositionTime] = useState(Date.now());
+            // const stationaryTimeRef = useRef(0); // Removed in v2.9.5
+            // const lastPositionRef = useRef(null); // Removed in v2.9.5
             const [showWalkSetup, setShowWalkSetup] = useState(false);
-            
+
             // ★独立した通知設定 (初期値: OFF)
             const [notifyStart, setNotifyStart] = useState(false);
             const [notifyEnd, setNotifyEnd] = useState(false);
@@ -991,79 +995,237 @@
                 return total;
             };
 
-            const startWalk = () => {
+            const isWakeLockSupported = () => 'wakeLock' in navigator;
+
+            const requestWakeLock = async () => {
+                if (!isWakeLockSupported()) {
+                    console.warn('[Wake Lock] Not supported in this browser');
+                    alert('お使いのブラウザはスリープ防止機能に対応していません。散歩中は画面を手動で点灯し続けてください。');
+                    return;
+                }
+
+                try {
+                    const wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLockRef.current = wakeLock;
+                    console.log('[Wake Lock] Acquired');
+
+                    wakeLock.addEventListener('release', () => {
+                        console.log('[Wake Lock] Released');
+                        wakeLockRef.current = null;
+                    });
+                } catch (error) {
+                    console.error('[Wake Lock] Request failed:', error);
+                    if (error.name === 'NotAllowedError') {
+                        console.warn('[Wake Lock] Permission denied by user or system');
+                    } else {
+                        alert('スリープ防止機能の起動に失敗しました。散歩中は画面を手動で点灯し続けてください。');
+                    }
+                }
+            };
+
+            const releaseWakeLock = async () => {
+                if (wakeLockRef.current !== null) {
+                    try {
+                        await wakeLockRef.current.release();
+                        console.log('[Wake Lock] Released manually');
+                        wakeLockRef.current = null;
+                    } catch (error) {
+                        console.error('[Wake Lock] Release failed:', error);
+                        wakeLockRef.current = null;
+                    }
+                }
+            };
+
+            const handlePositionSuccess = async (position) => {
+                const { latitude, longitude, accuracy } = position.coords;
+                const timestamp = position.timestamp;
+
+                console.log('[GPS] Position updated:', {
+                    lat: latitude,
+                    lng: longitude,
+                    accuracy: `${accuracy}m`,
+                    timestamp: new Date(timestamp).toISOString()
+                });
+
+                // 精度が悪すぎる場合はスキップ（100m以上の誤差）
+                if (accuracy > 100) {
+                    console.warn('[GPS] Low accuracy, skipping:', accuracy);
+                    return;
+                }
+
+                setLastPositionTime(Date.now());
+
+                setCurrentWalk(prev => {
+                    if (!prev) return null;
+                    const newPos = {
+                        lat: latitude,
+                        lng: longitude,
+                        time: new Date(timestamp),
+                        accuracy: accuracy
+                    };
+                    return { ...prev, positions: [...prev.positions, newPos] };
+                });
+            };
+
+            const handlePositionError = (error) => {
+                console.error('[GPS] Position error:', {
+                    code: error.code,
+                    message: error.message
+                });
+
+                switch (error.code) {
+                    case error.PERMISSION_DENIED:
+                        alert('位置情報の権限が拒否されました。設定を確認してください。');
+                        endWalk();
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        console.warn('[GPS] Position unavailable (信号が弱い可能性があります)');
+                        break;
+                    case error.TIMEOUT:
+                        console.warn('[GPS] Position timeout (GPSの取得に時間がかかっています)');
+                        break;
+                    default:
+                        console.error('[GPS] Unknown error:', error);
+                }
+            };
+
+            const startWalk = async () => {
                 if (selectedWalkers.length === 0) { alert('散歩者を選択してください'); return; }
                 if (!navigator.geolocation) { alert('お使いのブラウザは位置情報に対応していません'); return; }
+
+                // 既存のwatchPositionがあれば解除
+                if (watchIdRef.current !== null) {
+                    navigator.geolocation.clearWatch(watchIdRef.current);
+                    watchIdRef.current = null;
+                }
+
                 const walk = {
                     walkers: selectedWalkers, startTime: new Date(), positions: [],
                     pee: false, poo: false, pooFirmness: 3, energy: 3, water: false, memo: '', photos: [], weather: null
                 };
-                navigator.geolocation.getCurrentPosition(
-                    async (position) => {
-                        walk.positions.push({
-                            lat: position.coords.latitude, lng: position.coords.longitude,
-                            time: new Date(), accuracy: position.coords.accuracy
+
+                setCurrentWalk(walk);
+                setIsWalking(true);
+                setShowWalkSetup(false);
+                setPhotos([]);
+                setNow(new Date());
+                setLastPositionTime(Date.now());
+
+                const options = {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                };
+
+                let firstPosition = true;
+
+                try {
+                    const watchId = navigator.geolocation.watchPosition(
+                        async (position) => {
+                            if (firstPosition) {
+                                firstPosition = false;
+                                const weatherData = await fetchWeatherData(position.coords.latitude, position.coords.longitude);
+                                if (weatherData) {
+                                    setCurrentWalk(prev => { if (!prev) return null; return { ...prev, weather: weatherData }; });
+                                }
+                            }
+                            handlePositionSuccess(position);
+                        },
+                        handlePositionError,
+                        options
+                    );
+                    watchIdRef.current = watchId;
+                    console.log('[GPS] watchPosition started:', watchId);
+                } catch (error) {
+                    console.error('[GPS] Failed to start watchPosition:', error);
+                    alert('GPS追跡の開始に失敗しました。位置情報の権限を確認してください。');
+                }
+
+                await requestWakeLock();
+                // ★LINE通知（チェックされている場合のみ）
+                if (notifyStart) {
+                    const notifyWalkStart = functions.httpsCallable('notifyWalkStart');
+                    notifyWalkStart({ walkers: selectedWalkers })
+                        .then(() => console.log('LINE通知送信成功'))
+                        .catch(err => {
+                            console.error('LINE通知送信失敗', err);
+                            alert('LINE通知送信失敗: ' + err.message);
                         });
-                        lastPositionRef.current = { lat: position.coords.latitude, lng: position.coords.longitude, time: Date.now() };
-                        stationaryTimeRef.current = 0;
-                        setCurrentWalk(walk);
-                        setIsWalking(true);
-                        setShowWalkSetup(false);
-                        setPhotos([]);
-                        setNow(new Date());
-
-                        // ★LINE通知（チェックされている場合のみ）
-                        if (notifyStart) {
-                            const notifyWalkStart = functions.httpsCallable('notifyWalkStart');
-                            notifyWalkStart({ walkers: selectedWalkers })
-                                .then(() => console.log('LINE通知送信成功'))
-                                .catch(err => {
-                                    console.error('LINE通知送信失敗', err);
-                                    alert('LINE通知送信失敗: ' + err.message);
-                                });
-                        } else {
-                            console.log('LINE通知はスキップされました');
-                        }
-
-                        const weatherData = await fetchWeatherData(position.coords.latitude, position.coords.longitude);
-                        if (weatherData) {
-                            setCurrentWalk(prev => { if (!prev) return null; return { ...prev, weather: weatherData }; });
-                        }
-                    },
-                    (error) => { alert('位置情報の取得に失敗しました。位置情報を許可してください。'); },
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                );
+                } else {
+                    console.log('LINE通知はスキップされました');
+                }
             };
 
             useEffect(() => {
-                if (!isWalking || !currentWalk) return;
-                const interval = setInterval(() => {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            if (position.coords.accuracy <= 50) {
-                                const newPos = { lat: position.coords.latitude, lng: position.coords.longitude, time: new Date(), accuracy: position.coords.accuracy };
-                                if (lastPositionRef.current) {
-                                    const distance = calculateDistance(lastPositionRef.current.lat, lastPositionRef.current.lng, newPos.lat, newPos.lng);
-                                    if (distance <= 10) {
-                                        stationaryTimeRef.current += 5;
-                                        if (stationaryTimeRef.current >= 300) {
-                                            endWalk(); alert('5分間移動がなかったため、散歩を終了しました。'); stationaryTimeRef.current = 0;
-                                        }
-                                    } else { stationaryTimeRef.current = 0; }
-                                    lastPositionRef.current = { lat: newPos.lat, lng: newPos.lng, time: Date.now() };
-                                }
-                                setCurrentWalk(prev => ({ ...prev, positions: [...prev.positions, newPos] }));
-                            }
-                        },
-                        (error) => { console.log('GPS取得エラー:', error); },
-                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                    );
-                }, 5000);
-                return () => clearInterval(interval);
-            }, [isWalking, currentWalk, photos]);
+                return () => {
+                    if (watchIdRef.current !== null) {
+                        navigator.geolocation.clearWatch(watchIdRef.current);
+                        console.log('[GPS] Cleanup: watchPosition cleared on unmount');
+                    }
+                    if (wakeLockRef.current !== null) {
+                        wakeLockRef.current.release()
+                            .then(() => console.log('[Wake Lock] Cleanup: Released on unmount'))
+                            .catch(err => console.error('[Wake Lock] Cleanup failed:', err));
+                    }
+                };
+            }, []);
+            useEffect(() => {
+                const handleVisibilityChange = async () => {
+                    if (document.visibilityState === 'visible' && isWalking) {
+                        if (wakeLockRef.current === null) {
+                            console.log('[Wake Lock] Page visible, re-requesting wake lock');
+                            await requestWakeLock();
+                        }
+                    }
+                };
+
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+
+                return () => {
+                    document.removeEventListener('visibilitychange', handleVisibilityChange);
+                };
+            }, [isWalking]);
+            useEffect(() => {
+                if (stopCheckIntervalRef.current !== null) {
+                    clearInterval(stopCheckIntervalRef.current);
+                }
+
+                if (isWalking) {
+                    stopCheckIntervalRef.current = setInterval(() => {
+                        const now = Date.now();
+                        const timeSinceLastPosition = now - lastPositionTime;
+
+                        if (timeSinceLastPosition > 300000) { // 5 minutes
+                            console.log('[Stop Check] 5 minutes without position update, ending walk');
+                            alert('5分間位置情報が更新されませんでした。散歩を終了します。');
+                            endWalk();
+                        } else {
+                            console.log(`[Stop Check] Last position: ${Math.floor(timeSinceLastPosition / 1000)}s ago`);
+                        }
+                    }, 30000); // Check every 30 seconds
+                }
+
+                return () => {
+                    if (stopCheckIntervalRef.current !== null) {
+                        clearInterval(stopCheckIntervalRef.current);
+                        stopCheckIntervalRef.current = null;
+                    }
+                };
+            }, [isWalking, lastPositionTime]);
+
+
 
             const endWalk = async () => {
                 if (!currentWalk) return;
+                await releaseWakeLock();
+
+                // watchPositionの停止
+                if (watchIdRef.current !== null) {
+                    navigator.geolocation.clearWatch(watchIdRef.current);
+                    console.log('[GPS] watchPosition cleared:', watchIdRef.current);
+                    watchIdRef.current = null;
+                }
+
                 const endTime = new Date();
                 const duration = Math.floor((endTime - currentWalk.startTime) / 60000);
                 const distance = calculateTotalDistance(currentWalk.positions);
@@ -1073,8 +1235,8 @@
                     setCurrentWalk(null);
                     setSelectedWalkers([]);
                     setPhotos([]);
-                    stationaryTimeRef.current = 0;
-                    lastPositionRef.current = null;
+                    // stationaryTimeRef.current = 0; // Removed in v2.9.5
+                    // lastPositionRef.current = null; // Removed in v2.9.5
                 }, 0);
 
                 await db.collection('walks').add({
