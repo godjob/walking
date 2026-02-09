@@ -28,14 +28,37 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+
+        /* モーダルスクロール制御 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            overscroll-behavior: contain;
+        }
+
+        .modal-content {
+            max-height: 90vh;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
     </style>
 </head>
 
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        // ★バージョン更新 v2.9.6
-        const APP_VERSION = 'v2.9.6';
+        // ★バージョン更新 v2.9.7 (改善対応)
+        const APP_VERSION = 'v2.9.7';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -51,6 +74,19 @@
         const storage = firebase.storage();
         const functions = firebase.app().functions('asia-northeast1');
         const { useState, useEffect, useRef, useLayoutEffect } = React;
+
+        // モーダル表示時の背景スクロール防止フック
+        const useModalScrollLock = (isOpen) => {
+            useEffect(() => {
+                if (isOpen) {
+                    const originalStyle = window.getComputedStyle(document.body).overflow;
+                    document.body.style.overflow = 'hidden';
+                    return () => {
+                        document.body.style.overflow = originalStyle;
+                    };
+                }
+            }, [isOpen]);
+        };
 
         const badges = [
             { id: 'first', name: '初めての散歩', icon: '🎉', condition: (c) => c >= 1 },
@@ -316,12 +352,10 @@
 
         function PhotoViewer({ src, onClose }) {
             const [scale, setScale] = useState(1);
-            useEffect(() => {
-                document.body.style.overflow = 'hidden';
-                return () => document.body.style.overflow = 'auto';
-            }, []);
+            useModalScrollLock(true);
+
             return React.createElement('div', {
-                className: 'fixed inset-0 bg-black z-[60] flex items-center justify-center overflow-hidden',
+                className: 'fixed inset-0 bg-black z-[60] flex items-center justify-center overflow-hidden overscroll-contain',
                 onClick: onClose
             },
                 React.createElement('div', { className: 'absolute top-4 right-4 z-10 flex gap-4' },
@@ -351,6 +385,7 @@
             const mapRef = useRef(null);
             const mapInstanceRef = useRef(null);
             const polylineRef = useRef(null);
+            useModalScrollLock(true);
 
             useEffect(() => {
                 if (!positions || positions.length === 0 || !mapRef.current) return;
@@ -400,10 +435,10 @@
             }, [positions]);
 
             return React.createElement('div', {
-                className: 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'
+                className: 'modal-overlay p-4'
             },
-                React.createElement('div', { className: 'bg-white rounded-lg w-full max-w-2xl' },
-                    React.createElement('div', { className: 'p-4 border-b flex justify-between items-center' },
+                React.createElement('div', { className: 'bg-white rounded-lg w-full max-w-2xl modal-content' },
+                    React.createElement('div', { className: 'p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10' },
                         React.createElement('h3', { className: 'font-bold text-lg' }, '🗺️ 散歩コース (Google Maps)'),
                         React.createElement('button', {
                             onClick: onClose,
@@ -416,6 +451,7 @@
         }
 
         function WalkEditForm({ walk, walkers, onSave, onCancel }) {
+            useModalScrollLock(true);
             const [formData, setFormData] = useState({
                 walkers: walk.walkers || [],
                 startTime: walk.startTime ? toLocalISOString(walk.startTime) : '',
@@ -482,9 +518,9 @@
             };
 
             return React.createElement('div', {
-                className: 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'
+                className: 'modal-overlay p-4'
             },
-                React.createElement('div', { className: 'bg-white rounded-lg w-full max-w-md max-h-[85vh] overflow-y-auto' },
+                React.createElement('div', { className: 'bg-white rounded-lg w-full max-w-md modal-content' },
                     React.createElement('div', { className: 'p-4' },
                         React.createElement('h3', { className: 'font-bold text-lg mb-4' }, '散歩記録を編集'),
                         React.createElement('div', { className: 'space-y-4' },
@@ -846,6 +882,9 @@
             const wakeLockRef = useRef(null);
             const stopCheckIntervalRef = useRef(null);
             const [lastPositionTime, setLastPositionTime] = useState(Date.now());
+            const [showWalkWarning, setShowWalkWarning] = useState(false);
+            useModalScrollLock(showWalkWarning);
+
             // const stationaryTimeRef = useRef(0); // Removed in v2.9.5
             // const lastPositionRef = useRef(null); // Removed in v2.9.5
             const [showWalkSetup, setShowWalkSetup] = useState(false);
@@ -1164,13 +1203,14 @@
                     timestamp: new Date(timestamp).toISOString()
                 });
 
+                // 生存確認: 精度に関わらず更新時間をリセット
+                setLastPositionTime(Date.now());
+
                 // 精度が悪すぎる場合はスキップ（100m以上の誤差）
                 if (accuracy > 100) {
                     console.warn('[GPS] Low accuracy, skipping:', accuracy);
                     return;
                 }
-
-                setLastPositionTime(Date.now());
 
                 setCurrentWalk(prev => {
                     if (!prev) return null;
@@ -1312,14 +1352,23 @@
                         const now = Date.now();
                         const timeSinceLastPosition = now - lastPositionTime;
 
+                        // 3分経過かつ警告未表示なら警告を表示
+                        if (timeSinceLastPosition > 180000 && !showWalkWarning) { // 3 minutes
+                            console.log('[Stop Check] 3 minutes warning');
+                            setShowWalkWarning(true);
+                            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                        }
+
                         if (timeSinceLastPosition > 300000) { // 5 minutes
                             console.log('[Stop Check] 5 minutes without position update, ending walk');
+                            // 警告が表示されていても強制終了
+                            setShowWalkWarning(false);
                             alert('5分間位置情報が更新されませんでした。散歩を終了します。');
                             endWalk();
                         } else {
                             console.log(`[Stop Check] Last position: ${Math.floor(timeSinceLastPosition / 1000)}s ago`);
                         }
-                    }, 30000); // Check every 30 seconds
+                    }, 10000); // Check every 10 seconds
                 }
 
                 return () => {
@@ -1328,7 +1377,7 @@
                         stopCheckIntervalRef.current = null;
                     }
                 };
-            }, [isWalking, lastPositionTime]);
+            }, [isWalking, lastPositionTime, showWalkWarning]);
 
 
 
@@ -1870,7 +1919,30 @@
 
                 editingWalk && React.createElement(WalkEditForm, { walk: editingWalk, walkers: walkers, onSave: (data) => updateWalk(editingWalk.id, data), onCancel: () => setEditingWalk(null) }),
                 showMap && React.createElement(MapView, { positions: showMap, onClose: () => setShowMap(null) }),
-                viewingPhoto && React.createElement(PhotoViewer, { src: viewingPhoto, onClose: () => setViewingPhoto(null) })
+                viewingPhoto && React.createElement(PhotoViewer, { src: viewingPhoto, onClose: () => setViewingPhoto(null) }),
+
+                showWalkWarning && React.createElement('div', { className: 'modal-overlay' },
+                    React.createElement('div', { className: 'bg-white rounded-lg p-6 max-w-sm w-full shadow-2xl modal-content m-4' },
+                        React.createElement('h3', { className: 'font-bold text-xl text-red-600 mb-4 flex items-center justify-center' },
+                            React.createElement('span', { className: 'text-3xl mr-2' }, '⚠️'), '散歩中ですか？'
+                        ),
+                        React.createElement('p', { className: 'text-gray-700 mb-6 font-bold leading-relaxed text-center' },
+                            'しばらく移動が検出されていません。', React.createElement('br'),
+                            '散歩を継続しますか？', React.createElement('br'),
+                            React.createElement('span', { className: 'text-xs text-red-500 font-normal block mt-2' }, '※5分経過すると自動終了します')
+                        ),
+                        React.createElement('div', { className: 'flex flex-col gap-3' },
+                            React.createElement('button', {
+                                onClick: () => { setLastPositionTime(Date.now()); setShowWalkWarning(false); },
+                                className: 'bg-green-600 text-white font-bold py-4 px-4 rounded-lg text-lg shadow-lg hover:bg-green-700 transition-colors'
+                            }, 'まだ散歩中です 🐕'),
+                            React.createElement('button', {
+                                onClick: () => { if (confirm('散歩を終了しますか？')) { setShowWalkWarning(false); endWalk(); } },
+                                className: 'bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors'
+                            }, '終了する')
+                        )
+                    )
+                )
             );
         }
 
