@@ -57,8 +57,8 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        // ★バージョン更新 v2.9.7 (改善対応)
-        const APP_VERSION = 'v2.9.7';
+        // ★バージョン更新 v2.9.8 (改善対応)
+        const APP_VERSION = 'v2.9.8';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -1595,6 +1595,12 @@
                                         item.memo && React.createElement('div', { className: 'text-sm text-gray-600 mb-1 bg-gray-50 p-1 rounded' }, item.memo),
                                         item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 mb-2 overflow-x-auto' },
                                             item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
+                                        ),
+                                        React.createElement('div', { className: 'flex justify-end gap-2 mt-2' },
+                                            item.positions && item.positions.length > 0 && React.createElement('button', {
+                                                onClick: () => setShowMap(item.positions),
+                                                className: 'px-3 py-1 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded text-xs font-bold'
+                                            }, '地図')
                                         )
                                     )
                                 ) :
