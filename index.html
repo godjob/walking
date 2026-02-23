@@ -57,8 +57,8 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        // ★バージョン更新 v2.9.8 (改善対応)
-        const APP_VERSION = 'v2.9.8';
+        // ★バージョン更新 v2.9.9 (歩行距離編集対応)
+        const APP_VERSION = 'v2.9.9';
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -456,6 +456,7 @@
                 walkers: walk.walkers || [],
                 startTime: walk.startTime ? toLocalISOString(walk.startTime) : '',
                 endTime: walk.endTime ? toLocalISOString(walk.endTime) : '',
+                distance: walk.distance !== undefined ? (walk.distance / 1000) : '',
                 pee: walk.pee || false,
                 poo: walk.poo || false,
                 energy: walk.energy || 3,
@@ -512,7 +513,8 @@
                     ...formData,
                     startTime: firebase.firestore.Timestamp.fromDate(start),
                     endTime: firebase.firestore.Timestamp.fromDate(end),
-                    duration: newDuration
+                    duration: newDuration,
+                    distance: (formData.distance !== '' && formData.distance !== null) ? Math.round(parseFloat(formData.distance) * 1000) : 0
                 };
                 onSave(saveData);
             };
@@ -559,6 +561,21 @@
                                         }),
                                         React.createElement('span', null, w.name)
                                     ))
+                                )
+                            ),
+                            React.createElement('div', null,
+                                React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '歩行距離'),
+                                React.createElement('div', { className: 'flex items-center gap-2' },
+                                    React.createElement('input', {
+                                        type: 'number',
+                                        min: '0',
+                                        step: '0.01',
+                                        placeholder: '例: 1.71',
+                                        value: formData.distance,
+                                        onChange: (e) => setFormData({ ...formData, distance: e.target.value }),
+                                        className: 'border border-gray-300 rounded px-3 py-2 w-full text-sm'
+                                    }),
+                                    React.createElement('span', { className: 'text-sm text-gray-600 whitespace-nowrap' }, 'km')
                                 )
                             ),
                             React.createElement('div', null,
