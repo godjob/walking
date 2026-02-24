@@ -19,6 +19,9 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
     match /line_users/{userId} {
       // Only accessed by Admin SDK (backend)
       allow read, write: if false;

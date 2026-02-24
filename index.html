@@ -57,8 +57,17 @@
 <body class="bg-gray-100">
     <div id="app"></div>
     <script>
-        // ★バージョン更新 v2.9.9 (歩行距離編集対応)
-        const APP_VERSION = 'v2.9.9';
+        // ★バージョン更新 v2.10.0 (散歩設定機能追加)
+        const APP_VERSION = 'v2.10.0';
+
+        const DEFAULT_SETTINGS = {
+            stopDetectionRadius: 10,
+            stopDetectionDuration: 30,
+            autoEndEnabled: true,
+            autoEndAfterStop: 600,
+            gpsUpdateInterval: 5,
+            minimumDistanceThreshold: 5,
+        };
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqGO0-RnJAfQqsIunx35ZuAGc85cFD-lA",
@@ -874,6 +883,119 @@
             );
         }
 
+        function SettingsScreen({ settings, onSave, onReset }) {
+            const [localSettings, setLocalSettings] = useState(settings);
+
+            // 親コンポーネントのsettingsが更新されたらローカルも同期（初期ロード時など）
+            useEffect(() => {
+                setLocalSettings(settings);
+            }, [settings]);
+
+            const handleChange = (key, value) => {
+                setLocalSettings(prev => ({ ...prev, [key]: value }));
+            };
+
+            const handleSave = () => {
+                onSave(localSettings);
+            };
+
+            return React.createElement('div', { className: 'pb-20' },
+                // Section 1: Stop Detection
+                React.createElement('div', { className: 'bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-4' },
+                    React.createElement('h3', { className: 'font-bold text-lg mb-3 text-gray-800 flex items-center' }, React.createElement('span', { className: 'mr-2' }, '🛑'), '停止判定'),
+
+                    React.createElement('div', { className: 'mb-6' },
+                        React.createElement('label', { className: 'block text-sm font-medium mb-1' }, `判定範囲 (半径): ${localSettings.stopDetectionRadius}m`),
+                        React.createElement('input', {
+                            type: 'range', min: 5, max: 50, step: 5,
+                            value: localSettings.stopDetectionRadius,
+                            onChange: (e) => handleChange('stopDetectionRadius', parseInt(e.target.value)),
+                            className: 'w-full mb-1'
+                        }),
+                        React.createElement('p', { className: 'text-xs text-gray-500' }, '推奨: 10m (初期設定)')
+                    ),
+
+                    React.createElement('div', null,
+                        React.createElement('label', { className: 'block text-sm font-medium mb-1' }, `判定時間: ${localSettings.stopDetectionDuration}秒`),
+                        React.createElement('input', {
+                            type: 'range', min: 10, max: 300, step: 10,
+                            value: localSettings.stopDetectionDuration,
+                            onChange: (e) => handleChange('stopDetectionDuration', parseInt(e.target.value)),
+                            className: 'w-full mb-1'
+                        }),
+                        React.createElement('p', { className: 'text-xs text-gray-500' }, '推奨: 30秒 (初期設定)')
+                    )
+                ),
+
+                // Section 2: Auto End
+                React.createElement('div', { className: 'bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-4' },
+                    React.createElement('h3', { className: 'font-bold text-lg mb-3 text-gray-800 flex items-center' }, React.createElement('span', { className: 'mr-2' }, '🏁'), '自動終了'),
+
+                    React.createElement('div', { className: 'flex items-center justify-between mb-4' },
+                        React.createElement('span', { className: 'text-sm font-medium' }, '自動終了を有効にする'),
+                        React.createElement('div', {
+                            className: `w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${localSettings.autoEndEnabled ? 'bg-green-500' : 'bg-gray-300'}`,
+                            onClick: () => handleChange('autoEndEnabled', !localSettings.autoEndEnabled)
+                        },
+                            React.createElement('div', { className: `bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${localSettings.autoEndEnabled ? 'translate-x-6' : ''}` })
+                        )
+                    ),
+                    React.createElement('p', { className: 'text-xs text-gray-500 mb-4' }, '推奨: オン (初期設定)'),
+
+                    localSettings.autoEndEnabled && React.createElement('div', null,
+                        React.createElement('label', { className: 'block text-sm font-medium mb-1' }, `終了までの時間: ${Math.floor(localSettings.autoEndAfterStop / 60)}分`),
+                        React.createElement('input', {
+                            type: 'range', min: 60, max: 1800, step: 60,
+                            value: localSettings.autoEndAfterStop,
+                            onChange: (e) => handleChange('autoEndAfterStop', parseInt(e.target.value)),
+                            className: 'w-full mb-1'
+                        }),
+                        React.createElement('p', { className: 'text-xs text-gray-500' }, '推奨: 10分 (初期設定)')
+                    )
+                ),
+
+                // Section 3: Location
+                React.createElement('div', { className: 'bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6' },
+                    React.createElement('h3', { className: 'font-bold text-lg mb-3 text-gray-800 flex items-center' }, React.createElement('span', { className: 'mr-2' }, '📍'), '位置情報'),
+
+                    React.createElement('div', { className: 'mb-6' },
+                        React.createElement('label', { className: 'block text-sm font-medium mb-1' }, `GPS更新間隔: ${localSettings.gpsUpdateInterval}秒`),
+                        React.createElement('input', {
+                            type: 'range', min: 3, max: 30, step: 1,
+                            value: localSettings.gpsUpdateInterval,
+                            onChange: (e) => handleChange('gpsUpdateInterval', parseInt(e.target.value)),
+                            className: 'w-full mb-1'
+                        }),
+                        React.createElement('p', { className: 'text-xs text-gray-500' }, '推奨: 5秒 (初期設定) バッテリーと精度のバランス'),
+                        localSettings.gpsUpdateInterval === 3 && React.createElement('p', { className: 'text-xs text-amber-600 font-bold mt-1' }, '⚠️ バッテリー消費が大きくなります')
+                    ),
+
+                    React.createElement('div', null,
+                        React.createElement('label', { className: 'block text-sm font-medium mb-1' }, `最小記録距離: ${localSettings.minimumDistanceThreshold}m`),
+                        React.createElement('input', {
+                            type: 'range', min: 1, max: 20, step: 1,
+                            value: localSettings.minimumDistanceThreshold,
+                            onChange: (e) => handleChange('minimumDistanceThreshold', parseInt(e.target.value)),
+                            className: 'w-full mb-1'
+                        }),
+                        React.createElement('p', { className: 'text-xs text-gray-500' }, '推奨: 5m (初期設定)')
+                    )
+                ),
+
+                // Action Buttons
+                React.createElement('div', { className: 'flex gap-3' },
+                    React.createElement('button', {
+                        onClick: handleSave,
+                        className: 'flex-1 bg-blue-600 text-white font-bold py-3 rounded-lg shadow hover:bg-blue-700 transition-colors'
+                    }, '保存'),
+                    React.createElement('button', {
+                        onClick: () => { if(confirm('初期設定に戻しますか？')) onReset(); },
+                        className: 'flex-1 bg-gray-200 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-300 transition-colors'
+                    }, '初期設定に戻す')
+                )
+            );
+        }
+
         function App() {
             const [activeTab, setActiveTab] = useState('home');
             const [isWalking, setIsWalking] = useState(false);
@@ -898,6 +1020,8 @@
             const watchIdRef = useRef(null);
             const wakeLockRef = useRef(null);
             const stopCheckIntervalRef = useRef(null);
+            const lastGpsUpdateRef = useRef(0);
+            const lastActivePositionRef = useRef(null);
             const [lastPositionTime, setLastPositionTime] = useState(Date.now());
             const [showWalkWarning, setShowWalkWarning] = useState(false);
             useModalScrollLock(showWalkWarning);
@@ -905,6 +1029,45 @@
             // const stationaryTimeRef = useRef(0); // Removed in v2.9.5
             // const lastPositionRef = useRef(null); // Removed in v2.9.5
             const [showWalkSetup, setShowWalkSetup] = useState(false);
+
+            const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+
+            useEffect(() => {
+                const unsubscribe = db.collection('settings').doc('walk').onSnapshot((doc) => {
+                    if (doc.exists) {
+                        setSettings({ ...DEFAULT_SETTINGS, ...doc.data() });
+                    }
+                });
+                return () => unsubscribe();
+            }, []);
+
+            const saveSettings = async (newSettings) => {
+                try {
+                    await db.collection('settings').doc('walk').set({
+                        ...newSettings,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedBy: 'user'
+                    }, { merge: true });
+                    alert('設定を保存しました');
+                } catch (error) {
+                    console.error("Error saving settings: ", error);
+                    alert('設定の保存に失敗しました');
+                }
+            };
+
+            const resetSettings = async () => {
+                 try {
+                    await db.collection('settings').doc('walk').set({
+                        ...DEFAULT_SETTINGS,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedBy: 'reset'
+                    });
+                    alert('初期設定に戻しました');
+                } catch (error) {
+                    console.error("Error resetting settings: ", error);
+                    alert('リセットに失敗しました');
+                }
+            };
 
             // ★独立した通知設定 (初期値: OFF)
             const [notifyStart, setNotifyStart] = useState(false);
@@ -1213,6 +1376,12 @@
                 const { latitude, longitude, accuracy } = position.coords;
                 const timestamp = position.timestamp;
 
+                // GPS更新間隔の制御
+                if (timestamp - lastGpsUpdateRef.current < settings.gpsUpdateInterval * 1000) {
+                    return;
+                }
+                lastGpsUpdateRef.current = timestamp;
+
                 console.log('[GPS] Position updated:', {
                     lat: latitude,
                     lng: longitude,
@@ -1220,8 +1389,17 @@
                     timestamp: new Date(timestamp).toISOString()
                 });
 
-                // 生存確認: 精度に関わらず更新時間をリセット
-                setLastPositionTime(Date.now());
+                // 停止判定ロジック
+                if (!lastActivePositionRef.current) {
+                    lastActivePositionRef.current = { lat: latitude, lng: longitude };
+                    setLastPositionTime(Date.now());
+                } else {
+                    const dist = calculateDistance(lastActivePositionRef.current.lat, lastActivePositionRef.current.lng, latitude, longitude);
+                    if (dist > settings.stopDetectionRadius) {
+                        setLastPositionTime(Date.now());
+                        lastActivePositionRef.current = { lat: latitude, lng: longitude };
+                    }
+                }
 
                 // 精度が悪すぎる場合はスキップ（100m以上の誤差）
                 if (accuracy > 100) {
@@ -1231,6 +1409,16 @@
 
                 setCurrentWalk(prev => {
                     if (!prev) return null;
+
+                    // 最小記録距離の判定
+                    if (prev.positions.length > 0) {
+                        const lastPos = prev.positions[prev.positions.length - 1];
+                        const dist = calculateDistance(lastPos.lat, lastPos.lng, latitude, longitude);
+                        if (dist < settings.minimumDistanceThreshold) {
+                            return prev;
+                        }
+                    }
+
                     const newPos = {
                         lat: latitude,
                         lng: longitude,
@@ -1284,6 +1472,7 @@
                 setPhotos([]);
                 setNow(new Date());
                 setLastPositionTime(Date.now());
+                lastActivePositionRef.current = null;
 
                 const options = {
                     enableHighAccuracy: true,
@@ -1369,23 +1558,25 @@
                         const now = Date.now();
                         const timeSinceLastPosition = now - lastPositionTime;
 
-                        // 3分経過かつ警告未表示なら警告を表示
-                        if (timeSinceLastPosition > 180000 && !showWalkWarning) { // 3 minutes
-                            console.log('[Stop Check] 3 minutes warning');
-                            setShowWalkWarning(true);
-                            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-                        }
+                        if (settings.autoEndEnabled) {
+                            const autoEndThreshold = settings.autoEndAfterStop * 1000;
+                            // 自動終了の10秒前に警告
+                            const warningThreshold = Math.max(0, autoEndThreshold - 10000);
 
-                        if (timeSinceLastPosition > 300000) { // 5 minutes
-                            console.log('[Stop Check] 5 minutes without position update, ending walk');
-                            // 警告が表示されていても強制終了
-                            setShowWalkWarning(false);
-                            alert('5分間位置情報が更新されませんでした。散歩を終了します。');
-                            endWalk();
-                        } else {
-                            console.log(`[Stop Check] Last position: ${Math.floor(timeSinceLastPosition / 1000)}s ago`);
+                            if (timeSinceLastPosition > warningThreshold && timeSinceLastPosition < autoEndThreshold && !showWalkWarning) {
+                                console.log('[Stop Check] Warning');
+                                setShowWalkWarning(true);
+                                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                            }
+
+                            if (timeSinceLastPosition > autoEndThreshold) {
+                                console.log('[Stop Check] Auto End');
+                                setShowWalkWarning(false);
+                                alert('停止時間が長いため、散歩を自動終了しました。');
+                                endWalk();
+                            }
                         }
-                    }, 10000); // Check every 10 seconds
+                    }, 1000); // Check every 1 second
                 }
 
                 return () => {
@@ -1394,7 +1585,7 @@
                         stopCheckIntervalRef.current = null;
                     }
                 };
-            }, [isWalking, lastPositionTime, showWalkWarning]);
+            }, [isWalking, lastPositionTime, showWalkWarning, settings]);
 
 
 
@@ -1556,6 +1747,7 @@
                     React.createElement('button', { onClick: () => handleTabChange('health'), className: `flex-shrink-0 px-4 py-3 ${activeTab === 'health' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}` }, 'お世話'),
                     React.createElement('button', { onClick: () => handleTabChange('stats'), className: `flex-shrink-0 px-4 py-3 ${activeTab === 'stats' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}` }, '統計'),
                     React.createElement('button', { onClick: () => handleTabChange('badges'), className: `flex-shrink-0 px-4 py-3 ${activeTab === 'badges' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}` }, 'バッジ'),
+                    React.createElement('button', { onClick: () => handleTabChange('members'), className: `flex-shrink-0 px-4 py-3 ${activeTab === 'members' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}` }, 'メンバー'),
                     React.createElement('button', { onClick: () => handleTabChange('settings'), className: `flex-shrink-0 px-4 py-3 ${activeTab === 'settings' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}` }, '設定')
                 ),
 
@@ -1725,7 +1917,15 @@
                             React.createElement('label', { htmlFor: 'notify-end-check', className: 'text-sm font-bold text-gray-700' }, '終了をLINEで通知する')
                         ),
 
-                        React.createElement('button', { onClick: () => { if (confirm('散歩を終了しますか？')) endWalk(); }, disabled: uploadingPhotos, className: `w-full py-4 rounded-lg text-xl font-bold shadow-md ${uploadingPhotos ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}` }, uploadingPhotos ? '写真アップロード中...' : '🏁 散歩終了')
+                        React.createElement('button', { onClick: () => { if (confirm('散歩を終了しますか？')) endWalk(); }, disabled: uploadingPhotos, className: `w-full py-4 rounded-lg text-xl font-bold shadow-md ${uploadingPhotos ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}` }, uploadingPhotos ? '写真アップロード中...' : '🏁 散歩終了'),
+                        React.createElement('div', { className: 'mt-4 bg-gray-100 p-2 rounded text-[10px] text-gray-500 border border-gray-200' },
+                            React.createElement('div', { className: 'grid grid-cols-2 gap-x-2 gap-y-1' },
+                                React.createElement('div', null, `🛑 停止判定: ${settings.stopDetectionRadius}m / ${settings.stopDetectionDuration}秒`),
+                                React.createElement('div', null, `🏁 自動終了: ${settings.autoEndEnabled ? Math.floor(settings.autoEndAfterStop / 60) + '分後' : 'オフ'}`),
+                                React.createElement('div', null, `📍 GPS更新: ${settings.gpsUpdateInterval}秒`),
+                                React.createElement('div', null, `📏 最小記録: ${settings.minimumDistanceThreshold}m`)
+                            )
+                        )
                     ) : showWalkSetup ? React.createElement('div', { className: 'space-y-4' },
                         React.createElement('h3', { className: 'font-bold text-lg' }, '🚶 散歩の準備'),
                         React.createElement('div', null,
@@ -1919,7 +2119,7 @@
                     )
                 ),
 
-                activeTab === 'settings' && React.createElement('div', { className: 'p-4' },
+                activeTab === 'members' && React.createElement('div', { className: 'p-4' },
                     React.createElement('h2', { className: 'text-xl font-bold mb-4 flex items-center' }, React.createElement('span', { className: 'mr-2' }, '🏠'), '荒木家'),
                     React.createElement('div', { className: 'space-y-2 mb-4' },
                         walkers.map(w => React.createElement('div', { key: w.id, className: 'flex items-center justify-between p-3 border rounded-lg bg-white shadow-sm' },
@@ -1934,6 +2134,10 @@
                             React.createElement('button', { onClick: () => { setShowAddWalker(false); setNewWalkerName(''); }, className: 'flex-1 bg-gray-300 py-2 rounded' }, 'キャンセル')
                         )
                     )
+                ),
+
+                activeTab === 'settings' && React.createElement('div', { className: 'p-4' },
+                    React.createElement(SettingsScreen, { settings: settings, onSave: saveSettings, onReset: resetSettings })
                 ),
 
                 React.createElement('div', { className: 'fixed bottom-0 left-0 right-0 bg-gray-100 border-t p-2 text-center' },
