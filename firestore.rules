@@ -20,7 +20,25 @@ service cloud.firestore {
       allow write: if true;
     }
     match /settings/{settingId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if request.resource.data.keys().hasAll([
+        'stopDetectionRadius',
+        'stopDetectionDuration',
+        'locationInterval',
+        'autoEndEnabled',
+        'autoEndAfterStop',
+        'gpsUpdateInterval',
+        'minimumDistanceThreshold',
+        'updatedAt',
+        'updatedBy'
+      ]) &&
+      request.resource.data.stopDetectionRadius is int &&
+      request.resource.data.stopDetectionDuration is int &&
+      request.resource.data.locationInterval is int &&
+      request.resource.data.autoEndEnabled is bool &&
+      request.resource.data.autoEndAfterStop is int &&
+      request.resource.data.gpsUpdateInterval is int &&
+      request.resource.data.minimumDistanceThreshold is int;
     }
     match /line_users/{userId} {
       // Only accessed by Admin SDK (backend)
