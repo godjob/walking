@@ -1043,11 +1043,19 @@
 
             const saveSettings = async (newSettings) => {
                 try {
-                    await db.collection('settings').doc('walk').set({
-                        ...newSettings,
+                    const dataToSave = {
+                        stopDetectionRadius: parseInt(newSettings.stopDetectionRadius, 10),
+                        stopDetectionDuration: parseInt(newSettings.stopDetectionDuration, 10),
+                        locationInterval: parseInt(newSettings.stopDetectionDuration, 10),
+                        autoEndEnabled: !!newSettings.autoEndEnabled,
+                        autoEndAfterStop: parseInt(newSettings.autoEndAfterStop, 10),
+                        gpsUpdateInterval: parseInt(newSettings.gpsUpdateInterval, 10),
+                        minimumDistanceThreshold: parseInt(newSettings.minimumDistanceThreshold, 10),
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                         updatedBy: 'user'
-                    }, { merge: true });
+                    };
+
+                    await db.collection('settings').doc('walk').set(dataToSave, { merge: true });
                     alert('設定を保存しました');
                 } catch (error) {
                     console.error("Error saving settings: ", error);
