@@ -174,6 +174,14 @@ exports.weeklyBackup = functions.region('asia-northeast1').pubsub
         const sourceBucket = admin.storage().bucket();
         const backupBucket = admin.storage().bucket('walking-36c5a-backup');
 
+        // バックアップバケットが存在しなければ自動作成（初回のみ）
+        const [exists] = await backupBucket.exists();
+        if (!exists) {
+            await backupBucket.create({ location: 'asia-northeast1', storageClass: 'COLDLINE' });
+            await backupBucket.setMetadata({ versioning: { enabled: true } });
+            console.log('バックアップバケットを作成しました: walking-36c5a-backup (Coldline, バージョニング有効)');
+        }
+
         // Timestamp を ISO 文字列に再帰変換するヘルパー
         function convertTimestamps(obj) {
             if (obj === null || obj === undefined) return obj;
