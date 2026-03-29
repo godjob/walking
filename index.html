@@ -992,8 +992,72 @@
                         onClick: () => { if(confirm('初期設定に戻しますか？')) onReset(); },
                         className: 'flex-1 bg-gray-200 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-300 transition-colors'
                     }, '初期設定に戻す')
+                ),
+
+                // Section: Data Management
+                React.createElement('div', { className: 'bg-white p-4 rounded-lg shadow-sm border border-gray-200 mt-4' },
+                    React.createElement('h3', { className: 'font-bold text-lg mb-3 text-gray-800 flex items-center' },
+                        React.createElement('span', { className: 'mr-2' }, '💾'), 'データ管理'
+                    ),
+                    React.createElement('button', {
+                        id: 'exportAllDataBtn',
+                        onClick: exportAllData,
+                        className: 'w-full bg-green-600 text-white font-bold py-3 rounded-lg shadow hover:bg-green-700 transition-colors'
+                    }, '全データをエクスポート（JSON）')
                 )
             );
+        }
+
+        async function exportAllData() {
+            const btn = document.getElementById('exportAllDataBtn');
+            if (btn) { btn.disabled = true; btn.textContent = 'エクスポート中...'; }
+            try {
+                function convertTimestamps(obj) {
+                    if (obj === null || obj === undefined) return obj;
+                    if (typeof obj.toDate === 'function') return obj.toDate().toISOString();
+                    if (Array.isArray(obj)) return obj.map(convertTimestamps);
+                    if (typeof obj === 'object') {
+                        const result = {};
+                        for (const key of Object.keys(obj)) { result[key] = convertTimestamps(obj[key]); }
+                        return result;
+                    }
+                    return obj;
+                }
+
+                const [walksSnap, healthSnap, walkersSnap, settingsSnap] = await Promise.all([
+                    db.collection('walks').get(),
+                    db.collection('health').get(),
+                    db.collection('walkers').get(),
+                    db.collection('settings').get()
+                ]);
+
+                const exportData = {
+                    exportedAt: new Date().toISOString(),
+                    walks: walksSnap.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() })),
+                    health: healthSnap.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() })),
+                    walkers: walkersSnap.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() })),
+                    settings: settingsSnap.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() }))
+                };
+
+                const json = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const today = new Date().toISOString().slice(0, 10);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `fuku-walk-backup-${today}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                alert('完了しました！');
+            } catch (e) {
+                console.error('Export error:', e);
+                alert('エクスポートに失敗しました');
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '全データをエクスポート（JSON）'; }
+            }
         }
 
         function App() {
