@@ -233,6 +233,64 @@ exports.weeklyBackup = functions.region('asia-northeast1').pubsub
         console.log(`weeklyBackup 完了: ${dateStr}`);
         return null;
     });
+
+// 手動バックアップ用 HTTPS 関数（初回バックアップ・緊急時に使用）
+exports.runBackupNow = functions.region('asia-northeast1').https.onRequest(async (req, res) => {
+    if (req.method !== 'POST') { res.status(405).send('POST only'); return; }
+
+    const now = new Date();
+    const jst = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+    const dateStr = `${jst.getFullYear()}-${String(jst.getMonth() + 1).padStart(2, '0')}-${String(jst.getDate()).padStart(2, '0')}`;
+
+    const sourceBucket = admin.storage().bucket();
+    const backupBucket = admin.storage().bucket('walking-36c5a-backup');
+
+    const [exists] = await backupBucket.exists();
+    if (!exists) {
+        await backupBucket.create({ location: 'asia-northeast1', storageClass: 'COLDLINE' });
+        await backupBucket.setMetadata({ versioning: { enabled: true } });
+    }
+
+    function convertTimestamps(obj) {
+        if (obj === null || obj === undefined) return obj;
+        if (typeof obj !== 'object') return obj;
+        if (obj.toDate) return obj.toDate().toISOString();
+        if (Array.isArray(obj)) return obj.map(convertTimestamps);
+        const result = {};
+        for (const key of Object.keys(obj)) { result[key] = convertTimestamps(obj[key]); }
+        return result;
+    }
+
+    const report = [];
+    for (const collectionName of ['walks', 'health', 'walkers', 'settings']) {
+        try {
+            const snapshot = await db.collection(collectionName).get();
+            const docs = {};
+            snapshot.forEach(doc => { docs[doc.id] = convertTimestamps(doc.data()); });
+            await backupBucket.file(`firestore/${dateStr}/${collectionName}.json`).save(JSON.stringify(docs, null, 2), { contentType: 'application/json' });
+            report.push(`${collectionName}: ${snapshot.size}件`);
+        } catch (err) {
+            report.push(`${collectionName}: エラー (${err.message})`);
+        }
+    }
+
+    let storageCount = 0;
+    for (const prefix of ['walks/', 'health/']) {
+        try {
+            const [files] = await sourceBucket.getFiles({ prefix });
+            for (const file of files) {
+                await file.copy(backupBucket.file(`storage/${dateStr}/${file.name}`));
+            }
+            storageCount += files.length;
+        } catch (err) {
+            report.push(`Storage ${prefix}: エラー (${err.message})`);
+        }
+    }
+    report.push(`写真: ${storageCount}件`);
+
+    res.status(200).json({ date: dateStr, results: report });
+});
+
 exports.onHealthWrite = functions.region('asia-northeast1').firestore
     .document('health/{healthId}')
     .onWrite(async (change, context) => {
