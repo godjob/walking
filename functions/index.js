@@ -157,6 +157,74 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
         await broadcastToFamily(messages);
     });
 
+// 毎週日曜 00:00 JST に自動実行される週次バックアップ関数
+exports.weeklyBackup = functions.region('asia-northeast1').pubsub
+    .schedule('0 15 * * 0') // UTC 15:00 = JST 00:00 (日曜)
+    .timeZone('UTC')
+    .onRun(async (context) => {
+        const now = new Date();
+        const jst = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+        const yyyy = jst.getFullYear();
+        const mm = String(jst.getMonth() + 1).padStart(2, '0');
+        const dd = String(jst.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+
+        console.log(`weeklyBackup 開始: ${dateStr}`);
+
+        const sourceBucket = admin.storage().bucket();
+        const backupBucket = admin.storage().bucket('walking-36c5a-backup');
+
+        // Timestamp を ISO 文字列に再帰変換するヘルパー
+        function convertTimestamps(obj) {
+            if (obj === null || obj === undefined) return obj;
+            if (typeof obj !== 'object') return obj;
+            if (obj.toDate) return obj.toDate().toISOString();
+            if (Array.isArray(obj)) return obj.map(convertTimestamps);
+            const result = {};
+            for (const key of Object.keys(obj)) {
+                result[key] = convertTimestamps(obj[key]);
+            }
+            return result;
+        }
+
+        // ステップ1: Firestore コレクションを GCS にバックアップ
+        const collections = ['walks', 'health', 'walkers', 'settings'];
+        for (const collectionName of collections) {
+            try {
+                const snapshot = await db.collection(collectionName).get();
+                const docs = {};
+                snapshot.forEach(doc => {
+                    docs[doc.id] = convertTimestamps(doc.data());
+                });
+                const json = JSON.stringify(docs, null, 2);
+                const destPath = `firestore/${dateStr}/${collectionName}.json`;
+                const file = backupBucket.file(destPath);
+                await file.save(json, { contentType: 'application/json' });
+                console.log(`Firestore バックアップ完了: ${collectionName} (${snapshot.size}件) → gs://walking-36c5a-backup/${destPath}`);
+            } catch (err) {
+                console.error(`Firestore バックアップ失敗 [${collectionName}]:`, err);
+            }
+        }
+
+        // ステップ2: Storage の写真ファイルをバックアップバケットにコピー
+        const prefixes = ['walks/', 'health/'];
+        for (const prefix of prefixes) {
+            try {
+                const [files] = await sourceBucket.getFiles({ prefix });
+                console.log(`Storage コピー対象: ${prefix} → ${files.length}件`);
+                for (const file of files) {
+                    const destPath = `storage/${dateStr}/${file.name}`;
+                    await file.copy(backupBucket.file(destPath));
+                }
+                console.log(`Storage バックアップ完了: ${prefix} → ${files.length}件`);
+            } catch (err) {
+                console.error(`Storage バックアップ失敗 [${prefix}]:`, err);
+            }
+        }
+
+        console.log(`weeklyBackup 完了: ${dateStr}`);
+        return null;
+    });
 exports.onHealthWrite = functions.region('asia-northeast1').firestore
     .document('health/{healthId}')
     .onWrite(async (change, context) => {
