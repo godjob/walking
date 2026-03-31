@@ -24,6 +24,11 @@ jobs:
         run: npm ci
         working-directory: functions
 
+      - name: .env ファイルを生成
+        run: |
+          echo "LINE_CHANNEL_ACCESS_TOKEN=${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}" > functions/.env
+          echo "LINE_CHANNEL_SECRET=${{ secrets.LINE_CHANNEL_SECRET }}" >> functions/.env
+
       - name: Firebase にデプロイ
         run: npx firebase-tools deploy --non-interactive --token "$FIREBASE_TOKEN"
         env:
