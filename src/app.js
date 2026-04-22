@@ -281,6 +281,10 @@ function App() {
             isToiletCleaned: record?.isToiletCleaned || false,
             isWaterChanged: record?.isWaterChanged || false,
             weight: record?.weight || '',
+            yardStartTime: record?.yardStartTime || '',
+            yardEndTime: record?.yardEndTime || '',
+            yardPoo: record?.yardPoo || false,
+            yardPooFirmness: record?.yardPooFirmness || 3,
             memo: record?.memo || '',
             photos: record?.photos || [],
             notify: false
@@ -850,7 +854,7 @@ function App() {
                         ) :
                         React.createElement('div', { key: 'h-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                             React.createElement('div', { className: 'flex justify-between items-start mb-2' },
-                                React.createElement('div', null, React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'cleaning' ? '🧹 掃除' : item.type === 'weight' ? '⚖️ 体重' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : '💊 薬') + ' (' + item.walker + ')')),
+                                React.createElement('div', null, React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'cleaning' ? '🧹 掃除' : item.type === 'weight' ? '⚖️ 体重' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : item.type === 'yard' ? '🏡 庭遊び' : '💊 薬') + ' (' + item.walker + ')')),
                                 React.createElement('div', { className: 'text-right' }, React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatRelativeTime(item.date)))
                             ),
                             React.createElement('div', { className: 'mb-2' },
@@ -868,6 +872,10 @@ function App() {
                                     item.isWaterChanged && React.createElement('span', { className: 'bg-cyan-100 px-2 py-0.5 rounded text-cyan-800' }, '水: 済')
                                 ),
                                 item.type === 'weight' && React.createElement('p', { className: 'text-lg font-bold text-blue-600' }, item.weight + ' kg'),
+                                item.type === 'yard' && React.createElement('div', { className: 'text-sm mt-1' },
+                                    (item.yardStartTime || item.yardEndTime) && React.createElement('p', { className: 'text-gray-600' }, '⏱️ ' + (item.yardStartTime || '?') + ' 〜 ' + (item.yardEndTime || '?')),
+                                    item.yardPoo && React.createElement('p', { className: 'text-amber-700' }, '💩 うんちあり' + (item.yardPooFirmness ? ' ' + getFirmnessEmoji(item.yardPooFirmness) : ''))
+                                ),
                                 item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
                             )
                         )
@@ -1040,6 +1048,11 @@ function App() {
                         React.createElement('span', { className: 'text-2xl mb-1' }, '🏥'),
                         React.createElement('span', { className: 'text-xs font-bold' }, '病院'),
                         React.createElement('span', { className: 'text-[10px] opacity-80 mt-1' }, formatSimpleTimeAgo(getLastRecordTime('hospital')) || '-')
+                    ),
+                    React.createElement('button', { onClick: () => initHealthForm('yard', null), className: 'bg-lime-100 p-4 rounded-lg text-center flex flex-col items-center shadow-sm' },
+                        React.createElement('span', { className: 'text-2xl mb-1' }, '🏡'),
+                        React.createElement('span', { className: 'text-xs font-bold' }, '庭遊び'),
+                        React.createElement('span', { className: 'text-[10px] opacity-80 mt-1' }, formatSimpleTimeAgo(getLastRecordTime('yard')) || '-')
                     )
                 ),
                 React.createElement('h3', { className: 'font-bold mb-3' }, 'お世話したよ'),
@@ -1078,7 +1091,7 @@ function App() {
                             React.createElement('div', { key: 'h-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                                 React.createElement('div', { className: 'flex justify-between items-start' },
                                     React.createElement('div', { className: 'flex-1' },
-                                        React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'cleaning' ? '🧹 掃除' : item.type === 'weight' ? '⚖️ 体重' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : '💊 薬') + ' (' + item.walker + ')'),
+                                        React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'cleaning' ? '🧹 掃除' : item.type === 'weight' ? '⚖️ 体重' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : item.type === 'yard' ? '🏡 庭遊び' : '💊 薬') + ' (' + item.walker + ')'),
                                         React.createElement('div', { className: 'mt-1' },
                                             item.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + item.hospitalName),
                                             item.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + item.medicineType),
@@ -1091,6 +1104,10 @@ function App() {
                                                 item.isWaterChanged && React.createElement('span', { className: 'bg-cyan-100 px-2 py-0.5 rounded text-cyan-800' }, '水: 済')
                                             ),
                                             item.type === 'weight' && React.createElement('p', { className: 'text-lg font-bold text-indigo-600' }, item.weight + ' kg'),
+                                            item.type === 'yard' && React.createElement('div', { className: 'text-sm mt-1' },
+                                                (item.yardStartTime || item.yardEndTime) && React.createElement('p', { className: 'text-gray-600' }, '⏱️ ' + (item.yardStartTime || '?') + ' 〜 ' + (item.yardEndTime || '?')),
+                                                item.yardPoo && React.createElement('p', { className: 'text-amber-700' }, '💩 うんちあり' + (item.yardPooFirmness ? ' ' + getFirmnessEmoji(item.yardPooFirmness) : ''))
+                                            ),
                                             item.memo && React.createElement('p', { className: 'text-sm text-gray-600 mt-1' }, item.memo)
                                         )
                                     ),

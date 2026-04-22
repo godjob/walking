@@ -35,7 +35,8 @@ function CareHistoryChart({ walks, healthRecords }) {
             'cleaning': '🧹',
             'weight': '⚖️',
             'grooming': '✂️',
-            'hospital': '🏥'
+            'hospital': '🏥',
+            'yard': '🏡'
         };
         return map[type] || '✨';
     };
@@ -128,7 +129,7 @@ function HealthForm({ type, walkers, formData, onChange, onSave, onCancel }) {
     return React.createElement('div', { className: 'space-y-4 bg-white p-4 rounded-lg' },
         React.createElement('h3', { className: 'font-bold text-lg' },
             (formData.id ? '✏️ 編集: ' : '') +
-            (type === 'hospital' ? '🏥 病院記録' : type === 'grooming' ? '✂️ 散髪記録' : type === 'bath' ? '🛁 入浴記録' : type === 'brushing' ? '✨ ブラッシング' : type === 'cleaning' ? '🧹 掃除' : type === 'weight' ? '⚖️ 体重' : type === 'food' ? '🥣 ご飯' : type === 'excretion' ? '💩 排泄記録' : '💊 薬記録')
+            (type === 'hospital' ? '🏥 病院記録' : type === 'grooming' ? '✂️ 散髪記録' : type === 'bath' ? '🛁 入浴記録' : type === 'brushing' ? '✨ ブラッシング' : type === 'cleaning' ? '🧹 掃除' : type === 'weight' ? '⚖️ 体重' : type === 'food' ? '🥣 ご飯' : type === 'excretion' ? '💩 排泄記録' : type === 'yard' ? '🏡 庭遊び記録' : '💊 薬記録')
         ),
         React.createElement('div', null,
             React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '担当者'),
@@ -270,6 +271,49 @@ function HealthForm({ type, walkers, formData, onChange, onSave, onCancel }) {
                 onChange: (e) => onChange({ ...formData, weight: e.target.value }),
                 className: 'w-full p-2 border rounded', placeholder: '例: 12.5'
             })
+        ),
+        type === 'yard' && React.createElement('div', { className: 'space-y-3' },
+            React.createElement('div', null,
+                React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '庭に出た時間'),
+                React.createElement('div', { className: 'flex items-center gap-2' },
+                    React.createElement('input', {
+                        type: 'time', value: formData.yardStartTime || '',
+                        onChange: (e) => onChange({ ...formData, yardStartTime: e.target.value }),
+                        className: 'flex-1 p-2 border rounded'
+                    }),
+                    React.createElement('span', { className: 'text-gray-500' }, '〜'),
+                    React.createElement('input', {
+                        type: 'time', value: formData.yardEndTime || '',
+                        onChange: (e) => onChange({ ...formData, yardEndTime: e.target.value }),
+                        className: 'flex-1 p-2 border rounded'
+                    })
+                )
+            ),
+            React.createElement('div', null,
+                React.createElement('label', { className: 'flex items-center gap-2 cursor-pointer' },
+                    React.createElement('input', {
+                        type: 'checkbox', checked: formData.yardPoo || false,
+                        onChange: (e) => onChange({ ...formData, yardPoo: e.target.checked }),
+                        className: 'w-5 h-5'
+                    }),
+                    React.createElement('span', { className: 'text-sm font-medium' }, '💩 うんちあり')
+                ),
+                formData.yardPoo && React.createElement('div', { className: 'mt-2 bg-amber-50 p-2 rounded border border-amber-200' },
+                    React.createElement('label', { className: 'text-xs font-bold text-gray-600 block mb-1' },
+                        'うんちの硬さ: ' + getFirmnessLabel(formData.yardPooFirmness || 3)
+                    ),
+                    React.createElement('input', {
+                        type: 'range', min: 1, max: 5, value: formData.yardPooFirmness || 3,
+                        onChange: (e) => onChange({ ...formData, yardPooFirmness: parseInt(e.target.value) }),
+                        className: 'w-full'
+                    }),
+                    React.createElement('div', { className: 'flex justify-between text-[10px] text-gray-500 mt-1' },
+                        React.createElement('span', null, 'やわらかい'),
+                        React.createElement('span', null, '普通'),
+                        React.createElement('span', null, '硬い')
+                    )
+                )
+            )
         ),
         React.createElement('div', null,
             React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '写真 (最大4枚)'),
