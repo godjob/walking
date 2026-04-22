@@ -149,7 +149,7 @@ function HealthForm({ type, walkers, formData, onChange, onSave, onCancel }) {
                 className: 'w-full p-2 border rounded'
             })
         ),
-        React.createElement('div', null,
+        type !== 'yard' && React.createElement('div', null,
             React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '時刻'),
             React.createElement('input', {
                 type: 'time', value: formData.time,
