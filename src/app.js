@@ -126,16 +126,18 @@ function App() {
         const lastWeekStart = new Date(thisWeekStart);
         lastWeekStart.setDate(thisWeekStart.getDate() - 7);
         const lastWeekEnd = new Date(lastWeekStart);
-        lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
+        lastWeekEnd.setDate(lastWeekStart.getDate() + now.getDay());
         lastWeekEnd.setHours(23, 59, 59, 999);
 
         const thisMonthStart = getMonthStart(now);
         const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         thisMonthEnd.setHours(23, 59, 59, 999);
 
+        const thisMonthDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const lastMonthDays = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+        const lastMonthEquivDay = Math.max(1, Math.floor(now.getDate() / thisMonthDays * lastMonthDays));
         const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-        lastMonthEnd.setHours(23, 59, 59, 999);
+        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, lastMonthEquivDay, 23, 59, 59, 999);
 
         return {
             week: calculateStats(walks, healthRecords, thisWeekStart, thisWeekEnd),
