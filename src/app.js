@@ -224,6 +224,15 @@ function App() {
         return `${year}/${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
     };
 
+    const renderCareTitle = (typeLabel, walkerText) => {
+        return React.createElement('p', { className: 'font-bold text-lg' },
+            typeLabel,
+            React.createElement('span', { className: 'text-sm font-normal text-gray-500 ml-0.5' },
+                `（担当：${walkerText}）`
+            )
+        );
+    };
+
     useEffect(() => {
         let timer;
         if (isWalking) {
@@ -675,11 +684,25 @@ function App() {
 
     const saveHealthRecord = async (data) => {
         const dateTime = data.time ? new Date(`${data.date}T${data.time}`) : new Date(data.date);
+        const isEdit = !!data.id;
         const recordData = { ...data, date: firebase.firestore.Timestamp.fromDate(dateTime) };
         delete recordData.id;
-        if (data.id) { await db.collection('health').doc(data.id).update(recordData); }
-        else { await db.collection('health').add(recordData); }
-        setShowHealthForm(false); setEditingHealth(null);
+        delete recordData.notify;
+        try {
+            if (isEdit) { await db.collection('health').doc(data.id).update(recordData); }
+            else { await db.collection('health').add(recordData); }
+            if (data.notify) {
+                const notifyFn = functions.httpsCallable('notifyHealthRecord');
+                const d = new Date(dateTime.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+                const dateStr = `${d.getFullYear().toString().slice(-2)}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                notifyFn({ ...data, dateStr, isEdit })
+                    .then(() => console.log('LINE通知送信成功'))
+                    .catch(err => { console.error('LINE通知送信失敗', err); alert('LINE通知送信失敗: ' + err.message); });
+            }
+            setShowHealthForm(false); setEditingHealth(null);
+        } catch (e) {
+            alert('保存に失敗しました: ' + e.message);
+        }
     };
 
     const deleteHealthRecord = async (id) => {
@@ -827,7 +850,7 @@ function App() {
                         React.createElement('div', { key: 'w-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                             React.createElement('div', { className: 'flex justify-between items-start mb-2' },
                                 React.createElement('div', { className: 'flex-1' },
-                                    React.createElement('p', { className: 'font-bold text-lg' }, '🚶 散歩 (' + (Array.isArray(item.walkers) ? item.walkers.join(', ') : item.walkers) + ')'),
+                                    renderCareTitle('🚶 散歩', Array.isArray(item.walkers) ? item.walkers.join(', ') : item.walkers),
                                     React.createElement('div', { className: 'flex gap-1 mt-1' },
                                         item.pee && React.createElement('span', { className: 'text-lg' }, '💧'),
                                         item.poo && React.createElement('span', { className: 'text-lg' }, '💩' + (item.pooFirmness ? getFirmnessEmoji(item.pooFirmness) : '')),
@@ -856,7 +879,7 @@ function App() {
                         ) :
                         React.createElement('div', { key: 'h-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                             React.createElement('div', { className: 'flex justify-between items-start mb-2' },
-                                React.createElement('div', null, React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'cleaning' ? '🧹 掃除' : item.type === 'weight' ? '⚖️ 体重' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : item.type === 'yard' ? '🏡 庭遊び' : '💊 薬') + ' (' + item.walker + ')')),
+                                React.createElement('div', null, renderCareTitle(item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'cleaning' ? '🧹 掃除' : item.type === 'weight' ? '⚖️ 体重' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : item.type === 'yard' ? '🏡 庭遊び' : '💊 薬', item.walker)),
                                 React.createElement('div', { className: 'text-right' }, React.createElement('p', { className: 'text-xs text-gray-500 font-bold whitespace-nowrap' }, formatRelativeTime(item.date)))
                             ),
                             React.createElement('div', { className: 'mb-2' },
@@ -1064,7 +1087,7 @@ function App() {
                             React.createElement('div', { key: 'w-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                                 React.createElement('div', { className: 'flex justify-between items-start mb-2' },
                                     React.createElement('div', { className: 'flex-1' },
-                                        React.createElement('p', { className: 'font-bold text-lg' }, '🚶 散歩 (' + (Array.isArray(item.walkers) ? item.walkers.join(', ') : item.walkers) + ')'),
+                                        renderCareTitle('🚶 散歩', Array.isArray(item.walkers) ? item.walkers.join(', ') : item.walkers),
                                         React.createElement('div', { className: 'flex gap-1 mt-1' },
                                             item.pee && React.createElement('span', { className: 'text-lg' }, '💧'),
                                             item.poo && React.createElement('span', { className: 'text-lg' }, '💩' + (item.pooFirmness ? getFirmnessEmoji(item.pooFirmness) : '')),
@@ -1093,7 +1116,7 @@ function App() {
                             React.createElement('div', { key: 'h-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                                 React.createElement('div', { className: 'flex justify-between items-start' },
                                     React.createElement('div', { className: 'flex-1' },
-                                        React.createElement('p', { className: 'font-bold text-lg' }, (item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'cleaning' ? '🧹 掃除' : item.type === 'weight' ? '⚖️ 体重' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : item.type === 'yard' ? '🏡 庭遊び' : '💊 薬') + ' (' + item.walker + ')'),
+                                        renderCareTitle(item.type === 'hospital' ? '🏥 病院' : item.type === 'grooming' ? '✂️ 散髪' : item.type === 'bath' ? '🛁 入浴' : item.type === 'brushing' ? '✨ ブラッシング' : item.type === 'cleaning' ? '🧹 掃除' : item.type === 'weight' ? '⚖️ 体重' : item.type === 'food' ? '🥣 ご飯' : item.type === 'excretion' ? '💩 排泄' : item.type === 'yard' ? '🏡 庭遊び' : '💊 薬', item.walker),
                                         React.createElement('div', { className: 'mt-1' },
                                             item.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + item.hospitalName),
                                             item.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + item.medicineType),

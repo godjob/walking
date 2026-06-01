@@ -291,98 +291,101 @@ exports.runBackupNow = functions.region('asia-northeast1').https.onRequest(async
     res.status(200).json({ date: dateStr, results: report });
 });
 
-exports.onHealthWrite = functions.region('asia-northeast1').firestore
-    .document('health/{healthId}')
-    .onWrite(async (change, context) => {
-        const newData = change.after.exists ? change.after.data() : null;
+exports.notifyHealthRecord = functions.region('asia-northeast1').https.onCall(async (data, context) => {
+    const newData = data;
+    if (!newData || !newData.type) {
+        throw new functions.https.HttpsError('invalid-argument', 'データが不正です。');
+    }
 
-        if (!newData || newData.notify === false) return;
+    const dateStr = newData.dateStr || '';
+    const walker = newData.walker || '誰か';
+    const memo = newData.memo ? `\n📝 ${newData.memo}` : '';
 
-        const isUpdate = change.before.exists;
-        const actionTitle = isUpdate ? '(修正)' : '';
+    let title = '';
+    let detail = '';
 
-        const dateStr = formatDateTime(newData.date);
-
-        let title = '';
-        let detail = '';
-
-        const walker = newData.walker || '誰か';
-        const memo = newData.memo ? `\n📝 ${newData.memo}` : '';
-
-        switch (newData.type) {
-            case 'excretion':
-                title = '💩 排泄';
-                const firmnessLabels = { 1: 'とてもやわらかい', 2: 'やわらかい', 3: '普通', 4: '硬め', 5: '硬い' };
-                const firmness = firmnessLabels[newData.pooFirmness] || '普通';
-                detail = `${walker}がトイレの世話をしました。\nうんちの硬さ: ${firmness}`;
-                break;
-
-            case 'food':
-                title = '🥣 ご飯';
-                const amountLabels = { 1: '空っぽ', 2: '少し', 3: '普通', 4: '多め', 5: '満杯' };
-                const amount = amountLabels[newData.foodAmount] || '普通';
-                detail = `${walker}がご飯をあげました。\n残量: ${amount}`;
-                break;
-
-            case 'medicine':
-                title = '💊 薬';
-                const medType = newData.medicineType || '薬';
-                const vaccine = newData.isVaccine ? '(予防接種)' : '';
-                detail = `${walker}が${medType}${vaccine}をあげました。`;
-                break;
-
-            case 'bath':
-                title = '🛁 入浴';
-                detail = `${walker}が福をお風呂に入れました✨`;
-                break;
-
-            case 'brushing':
-                title = '✨ ブラッシング';
-                detail = `${walker}がブラッシングをしてふわふわになりました✨`;
-                break;
-
-            case 'cleaning':
-                title = '🧹 掃除';
-                const cleanedItems = [];
-                if (newData.isFloorCleaned) cleanedItems.push('床✨');
-                if (newData.isToiletCleaned) cleanedItems.push('トイレ✨');
-                if (newData.isWaterChanged) cleanedItems.push('水交換✨');
-                const cleanedText = cleanedItems.length > 0 ? `\n詳細: ${cleanedItems.join(', ')}` : '';
-                detail = `${walker}が掃除をしました。${cleanedText}`;
-                break;
-
-            case 'grooming':
-                title = '✂️ 散髪';
-                const place = newData.groomedBy === 'shop' ? `お店(${newData.shopName})` : '自宅';
-                detail = `${walker}が${place}で散髪しました💈`;
-                break;
-
-            case 'hospital':
-                title = '🏥 病院';
-                const hospitalName = newData.hospitalName || '病院';
-                detail = `${walker}が${hospitalName}に連れて行きました。\n理由: ${newData.reason || 'なし'}`;
-                break;
-
-            case 'weight':
-                title = '⚖️ 体重測定';
-                detail = `${walker}が福ちゃんの体重を測りました。\n結果: ${newData.weight}kg`;
-                break;
-
-            default:
-                title = '✨ お世話';
-                detail = `${walker}がお世話をしました。`;
+    switch (newData.type) {
+        case 'excretion': {
+            title = '💩 排泄';
+            const firmnessLabels = { 1: 'とてもやわらかい', 2: 'やわらかい', 3: '普通', 4: '硬め', 5: '硬い' };
+            const firmness = firmnessLabels[newData.pooFirmness] || '普通';
+            detail = `${walker}がトイレの世話をしました。\nうんちの硬さ: ${firmness}`;
+            break;
         }
-
-        const textContent = `${title} ${actionTitle}\n${dateStr}\n\n${detail}${memo}`;
-
-        const messages = [{ type: 'text', text: textContent }];
-
-        if (newData.photos && newData.photos.length > 0) {
-            const photoMessages = newData.photos.slice(0, 4).map(url => ({
-                type: 'image', originalContentUrl: url, previewImageUrl: url
-            }));
-            messages.push(...photoMessages);
+        case 'food': {
+            title = '🥣 ご飯';
+            const amountLabels = { 1: '空っぽ', 2: '少し', 3: '普通', 4: '多め', 5: '満杯' };
+            const amount = amountLabels[newData.foodAmount] || '普通';
+            detail = `${walker}がご飯をあげました。\n残量: ${amount}`;
+            break;
         }
+        case 'medicine': {
+            title = '💊 薬';
+            const medType = newData.medicineType || '薬';
+            const vaccine = newData.isVaccine ? '(予防接種)' : '';
+            detail = `${walker}が${medType}${vaccine}をあげました。`;
+            break;
+        }
+        case 'bath':
+            title = '🛁 入浴';
+            detail = `${walker}が福をお風呂に入れました✨`;
+            break;
+        case 'brushing':
+            title = '✨ ブラッシング';
+            detail = `${walker}がブラッシングをしてふわふわになりました✨`;
+            break;
+        case 'cleaning': {
+            title = '🧹 掃除';
+            const cleanedItems = [];
+            if (newData.isFloorCleaned) cleanedItems.push('床✨');
+            if (newData.isToiletCleaned) cleanedItems.push('トイレ✨');
+            if (newData.isWaterChanged) cleanedItems.push('水交換✨');
+            const cleanedText = cleanedItems.length > 0 ? `\n詳細: ${cleanedItems.join(', ')}` : '';
+            detail = `${walker}が掃除をしました。${cleanedText}`;
+            break;
+        }
+        case 'grooming': {
+            title = '✂️ 散髪';
+            const place = newData.groomedBy === 'shop' ? `お店(${newData.shopName})` : '自宅';
+            detail = `${walker}が${place}で散髪しました💈`;
+            break;
+        }
+        case 'hospital': {
+            title = '🏥 病院';
+            const hospitalName = newData.hospitalName || '病院';
+            detail = `${walker}が${hospitalName}に連れて行きました。\n理由: ${newData.reason || 'なし'}`;
+            break;
+        }
+        case 'weight':
+            title = '⚖️ 体重測定';
+            detail = `${walker}が福ちゃんの体重を測りました。\n結果: ${newData.weight}kg`;
+            break;
+        case 'yard':
+            title = '🏡 庭遊び';
+            detail = `${walker}が福を庭で遊ばせました。`;
+            break;
+        default:
+            title = '✨ お世話';
+            detail = `${walker}がお世話をしました。`;
+    }
 
+    const actionTitle = newData.isEdit ? '(修正)' : '';
+    const textContent = `${title} ${actionTitle}\n${dateStr}\n\n${detail}${memo}`;
+
+    const messages = [{ type: 'text', text: textContent }];
+
+    if (newData.photos && newData.photos.length > 0) {
+        const photoMessages = newData.photos.slice(0, 4).map(url => ({
+            type: 'image', originalContentUrl: url, previewImageUrl: url
+        }));
+        messages.push(...photoMessages);
+    }
+
+    try {
         await broadcastToFamily(messages);
-    });
+        return { success: true };
+    } catch (error) {
+        console.error('notifyHealthRecordエラー:', error);
+        throw new functions.https.HttpsError('internal', 'LINE通知の送信に失敗しました。', error.message);
+    }
+});
