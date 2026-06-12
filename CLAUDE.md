@@ -96,4 +96,4 @@ curl -X POST https://asia-northeast1-walking-36c5a.cloudfunctions.net/runBackupN
 - Y: 機能追加
 - X: 破壊的変更
 
-現在: v2.13.0
+現在: v2.13.1
