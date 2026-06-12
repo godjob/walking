@@ -782,12 +782,15 @@ function App() {
     const recentWalks = walks.slice(0, 20);
     const recentHealth = healthRecords.slice(0, 20);
 
-    const allRecords = [...walks.map(w => ({ ...w, type: 'walk' })), ...healthRecords]
-        .sort((a, b) => {
-            const dateA = a.type === 'walk' ? a.startTime : a.date;
-            const dateB = b.type === 'walk' ? b.startTime : b.date;
-            return dateB - dateA;
-        });
+    const allRecords = useMemo(() =>
+        [...walks.map(w => ({ ...w, type: 'walk' })), ...healthRecords]
+            .sort((a, b) => {
+                const dateA = a.type === 'walk' ? a.startTime : a.date;
+                const dateB = b.type === 'walk' ? b.startTime : b.date;
+                return dateB - dateA;
+            }),
+        [walks, healthRecords]
+    );
 
     const getLastRecordTime = (type) => {
         if (type === 'excretion') {
