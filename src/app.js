@@ -775,13 +775,6 @@ function App() {
         );
     };
 
-    if (loading) { return React.createElement('div', { className: 'flex items-center justify-center min-h-screen' }, React.createElement('div', { className: 'text-lg' }, '読み込み中...')); }
-
-    const stats = getStats(statsView);
-    const earnedBadges = getEarnedBadges();
-    const recentWalks = walks.slice(0, 20);
-    const recentHealth = healthRecords.slice(0, 20);
-
     const allRecords = useMemo(() =>
         [...walks.map(w => ({ ...w, type: 'walk' })), ...healthRecords]
             .sort((a, b) => {
@@ -791,6 +784,13 @@ function App() {
             }),
         [walks, healthRecords]
     );
+
+    if (loading) { return React.createElement('div', { className: 'flex items-center justify-center min-h-screen' }, React.createElement('div', { className: 'text-lg' }, '読み込み中...')); }
+
+    const stats = getStats(statsView);
+    const earnedBadges = getEarnedBadges();
+    const recentWalks = walks.slice(0, 20);
+    const recentHealth = healthRecords.slice(0, 20);
 
     const getLastRecordTime = (type) => {
         if (type === 'excretion') {
