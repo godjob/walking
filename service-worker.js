@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fuku-cache-v2.13.1';
+const CACHE_NAME = 'fuku-cache-v2.14.0';
 const PRECACHE_URLS = [
     './',
     './index.html',
