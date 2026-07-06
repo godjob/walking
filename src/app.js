@@ -870,7 +870,7 @@ function App() {
                             React.createElement('div', null,
                                 item.memo && React.createElement('div', { className: 'text-sm text-gray-600 mb-1 bg-gray-50 p-1 rounded' }, item.memo),
                                 item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 mb-2 overflow-x-auto' },
-                                    item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
+                                    item.photos.map((url, i) => React.createElement('img', { key: i, src: url, loading: 'lazy', decoding: 'async', className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
                                 ),
                                 React.createElement('div', { className: 'flex justify-end gap-2 mt-2' },
                                     item.positions && item.positions.length > 0 && React.createElement('button', {
@@ -887,7 +887,7 @@ function App() {
                             ),
                             React.createElement('div', { className: 'mb-2' },
                                 item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mb-2 overflow-x-auto' },
-                                    item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
+                                    item.photos.map((url, i) => React.createElement('img', { key: i, src: url, loading: 'lazy', decoding: 'async', className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
                                 ),
                                 item.hospitalName && React.createElement('p', { className: 'text-sm' }, '🏥 ' + item.hospitalName),
                                 item.medicineType && React.createElement('p', { className: 'text-sm text-blue-600' }, '💊 ' + item.medicineType),
@@ -964,7 +964,7 @@ function App() {
                     React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '写真 (最大4枚)'),
                     React.createElement('div', { className: 'grid grid-cols-4 gap-2 mb-2' },
                         photos.map((url, i) => React.createElement('div', { key: i, className: 'relative' },
-                            React.createElement('img', { src: url, className: 'w-full h-20 object-cover rounded' }),
+                            React.createElement('img', { src: url, loading: 'lazy', decoding: 'async', className: 'w-full h-20 object-cover rounded' }),
                             React.createElement('button', { onClick: () => removePhoto(i), className: 'absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 text-xs' }, '×')
                         ))
                     ),
@@ -1107,7 +1107,7 @@ function App() {
                                 React.createElement('div', null,
                                     item.memo && React.createElement('div', { className: 'text-sm text-gray-600 mb-1 bg-gray-50 p-1 rounded' }, item.memo),
                                     item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 mb-2 overflow-x-auto' },
-                                        item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
+                                        item.photos.map((url, i) => React.createElement('img', { key: i, src: url, loading: 'lazy', decoding: 'async', className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
                                     ),
                                     React.createElement('div', { className: 'flex justify-end gap-2' },
                                         item.positions && item.positions.length > 0 && React.createElement('button', { onClick: () => setShowMap(item.positions), className: 'px-3 py-1 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded text-xs font-bold' }, '地図'),
@@ -1148,7 +1148,7 @@ function App() {
                                     )
                                 ),
                                 item.photos && item.photos.length > 0 && React.createElement('div', { className: 'flex gap-1 mt-2 overflow-x-auto' },
-                                    item.photos.map((url, i) => React.createElement('img', { key: i, src: url, className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
+                                    item.photos.map((url, i) => React.createElement('img', { key: i, src: url, loading: 'lazy', decoding: 'async', className: 'h-16 w-16 object-cover rounded cursor-pointer border border-gray-200', onClick: () => setViewingPhoto(url) }))
                                 )
                             )
                         )

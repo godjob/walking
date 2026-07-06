@@ -55,8 +55,20 @@
 </head>
 
 <body class="bg-gray-100">
-    <div id="app"></div>
+    <div id="app">
+        <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-size:1.125rem;color:#374151;">
+            読み込み中...</div>
+    </div>
     <script type="module" src="src/app.js"></script>
+    <script>
+        // Service Worker登録（v2.14.0で初めて有効化。CDNライブラリを端末にキャッシュし2回目以降の起動を高速化）
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .catch((err) => console.warn('SW registration failed:', err));
+            });
+        }
+    </script>
 </body>
 
 </html>
