@@ -2,7 +2,7 @@
 // メインAppコンポーネント・ReactDOM.render() エントリーポイント
 
 import { db, storage, functions } from './firebase-init.js';
-import { APP_VERSION, DEFAULT_SETTINGS, badges, ITEMS_PER_PAGE } from './constants.js';
+import { APP_VERSION, DEFAULT_SETTINGS, badges, ITEMS_PER_PAGE, CARE_TYPES } from './constants.js';
 import {
     getFirmnessLabel,
     getFirmnessEmoji,
@@ -21,6 +21,13 @@ import { PhotoViewer, MapView } from './map.js';
 import { WalkEditForm } from './walk.js';
 import { CareHistoryChart, HealthForm } from './health.js';
 import { SettingsScreen } from './settings.js';
+import {
+    DEFAULT_SEARCH,
+    PERIOD_LABELS,
+    filterCareRecords,
+    isSearchActive,
+    buildSearchSummary
+} from './search.js';
 
 const { useState, useEffect, useRef, useLayoutEffect, useMemo } = React;
 
@@ -114,6 +121,23 @@ function App() {
 
     const [homePage, setHomePage] = useState(1);
     const [healthPage, setHealthPage] = useState(1);
+
+    // ホーム画面の記録検索（ホームタブのみ・お世話タブには影響しない）
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [search, setSearch] = useState(DEFAULT_SEARCH);
+
+    const updateSearch = (patch) => setSearch(prev => ({ ...prev, ...patch }));
+
+    const toggleSearchType = (type) => {
+        setSearch(prev => ({
+            ...prev,
+            types: prev.types.includes(type)
+                ? prev.types.filter(t => t !== type)
+                : [...prev.types, type]
+        }));
+    };
+
+    const clearSearch = () => setSearch(DEFAULT_SEARCH);
 
     const statsData = useMemo(() => {
         const now = new Date();
@@ -230,6 +254,104 @@ function App() {
             React.createElement('span', { className: 'text-sm font-normal text-gray-500 ml-0.5' },
                 `（担当：${walkerText}）`
             )
+        );
+    };
+
+    // ホーム画面の検索パネル（折りたたみ式）
+    const renderSearchPanel = () => {
+        const summary = buildSearchSummary(search);
+
+        const chipBtn = (c) => React.createElement('button', {
+            key: c.type,
+            onClick: () => toggleSearchType(c.type),
+            className: `px-2 py-1 rounded-full border text-xs font-bold whitespace-nowrap ${search.types.includes(c.type) ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-600 border-gray-300'}`
+        }, c.emoji + c.label);
+
+        const periodBtn = (value) => React.createElement('button', {
+            key: value,
+            onClick: () => updateSearch({ period: value }),
+            className: `px-2 py-1 rounded border text-xs font-bold ${search.period === value ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-600 border-gray-300'}`
+        }, PERIOD_LABELS[value]);
+
+        const photoBtn = (value, label) => React.createElement('button', {
+            key: value,
+            onClick: () => updateSearch({ photo: value }),
+            className: `flex-1 px-2 py-1 rounded border text-xs font-bold ${search.photo === value ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-600 border-gray-300'}`
+        }, label);
+
+        const fieldLabel = (text) => React.createElement('p', { className: 'text-xs font-bold text-gray-600 mb-1' }, text);
+
+        return React.createElement('div', { className: 'mb-3' },
+            React.createElement('button', {
+                onClick: () => setSearchOpen(!searchOpen),
+                className: `w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm font-bold ${searchActive ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-600'}`
+            },
+                React.createElement('span', { className: 'truncate text-left' }, searchActive ? '🔍 検索中：' + summary : '🔍 記録を検索'),
+                React.createElement('span', { className: 'ml-2 flex-shrink-0' }, searchOpen ? '▲' : '▼')
+            ),
+
+            searchActive && !searchOpen && React.createElement('div', { className: 'flex justify-end mt-1' },
+                React.createElement('button', { onClick: clearSearch, className: 'text-xs text-blue-600 font-bold underline' }, '条件を解除')
+            ),
+
+            searchOpen && React.createElement('div', { className: 'mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-3' },
+                React.createElement('div', null,
+                    fieldLabel('種類（未選択＝すべて）'),
+                    React.createElement('div', { className: 'flex flex-wrap gap-1' }, CARE_TYPES.map(chipBtn))
+                ),
+                React.createElement('div', null,
+                    fieldLabel('期間'),
+                    React.createElement('div', { className: 'flex flex-wrap gap-1' },
+                        periodBtn('all'), periodBtn('today'), periodBtn('week'), periodBtn('month'), periodBtn('custom')
+                    ),
+                    search.period === 'custom' && React.createElement('div', { className: 'flex items-center gap-1 mt-2' },
+                        React.createElement('input', {
+                            type: 'date', value: search.from,
+                            onChange: (e) => updateSearch({ from: e.target.value }),
+                            className: 'flex-1 min-w-0 p-1 border rounded text-xs bg-white'
+                        }),
+                        React.createElement('span', { className: 'text-xs text-gray-500' }, '〜'),
+                        React.createElement('input', {
+                            type: 'date', value: search.to,
+                            onChange: (e) => updateSearch({ to: e.target.value }),
+                            className: 'flex-1 min-w-0 p-1 border rounded text-xs bg-white'
+                        })
+                    )
+                ),
+                React.createElement('div', null,
+                    fieldLabel('担当者'),
+                    React.createElement('select', {
+                        value: search.walker,
+                        onChange: (e) => updateSearch({ walker: e.target.value }),
+                        className: 'w-full p-1.5 border rounded text-sm bg-white'
+                    },
+                        React.createElement('option', { value: '' }, 'すべて'),
+                        walkers.map(w => React.createElement('option', { key: w.id, value: w.name }, w.name))
+                    )
+                ),
+                React.createElement('div', null,
+                    fieldLabel('写真'),
+                    React.createElement('div', { className: 'flex gap-1' },
+                        photoBtn('all', 'すべて'), photoBtn('with', '📷あり'), photoBtn('without', '📷なし')
+                    )
+                ),
+                React.createElement('div', null,
+                    fieldLabel('キーワード'),
+                    React.createElement('input', {
+                        type: 'search', value: search.keyword,
+                        onChange: (e) => updateSearch({ keyword: e.target.value }),
+                        placeholder: 'メモ・病院名・薬名・担当者',
+                        className: 'w-full p-2 border rounded text-sm'
+                    })
+                ),
+                React.createElement('button', {
+                    onClick: clearSearch,
+                    disabled: !searchActive,
+                    className: `w-full py-2 rounded text-sm font-bold ${searchActive ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-gray-100 text-gray-400'}`
+                }, '条件をクリア')
+            ),
+
+            searchActive && React.createElement('p', { className: 'text-xs text-gray-500 text-center mt-2' }, `— ${filteredHomeRecords.length}件 —`)
         );
     };
 
@@ -785,6 +907,16 @@ function App() {
         [walks, healthRecords]
     );
 
+    // ホーム一覧用に絞り込んだ派生データ（allRecords 自体は変更しない）
+    // ※ Rules of Hooks: 下の if (loading) より前に置くこと
+    const filteredHomeRecords = useMemo(
+        () => filterCareRecords(allRecords, search),
+        [allRecords, search]
+    );
+
+    // 検索条件が変わったら1ページ目に戻す（絞り込み後に空ページが表示されるのを防ぐ）
+    useEffect(() => { setHomePage(1); }, [search]);
+
     if (loading) { return React.createElement('div', { className: 'flex items-center justify-center min-h-screen' }, React.createElement('div', { className: 'text-lg' }, '読み込み中...')); }
 
     const stats = getStats(statsView);
@@ -801,8 +933,9 @@ function App() {
         return record ? (record.startTime || record.date) : null;
     };
 
-    const homeTotalPages = Math.ceil(allRecords.length / ITEMS_PER_PAGE) || 1;
-    const displayedHomeRecords = allRecords.slice((homePage - 1) * ITEMS_PER_PAGE, homePage * ITEMS_PER_PAGE);
+    const homeTotalPages = Math.ceil(filteredHomeRecords.length / ITEMS_PER_PAGE) || 1;
+    const displayedHomeRecords = filteredHomeRecords.slice((homePage - 1) * ITEMS_PER_PAGE, homePage * ITEMS_PER_PAGE);
+    const searchActive = isSearchActive(search);
 
     const healthTotalPages = Math.ceil(allRecords.length / ITEMS_PER_PAGE) || 1;
     const displayedHealthRecords = allRecords.slice((healthPage - 1) * ITEMS_PER_PAGE, healthPage * ITEMS_PER_PAGE);
@@ -847,8 +980,11 @@ function App() {
                 )
             ),
             React.createElement('h3', { className: 'font-bold mb-2 text-lg flex items-center' }, React.createElement('span', { className: 'mr-2' }, '🕒'), '福のお世話'),
+            renderSearchPanel(),
             React.createElement('div', { className: 'space-y-3 max-h-96 overflow-y-auto pr-1' },
-                allRecords.length === 0 ? React.createElement('p', { className: 'text-center text-gray-500 mt-4' }, 'まだ記録がありません') :
+                filteredHomeRecords.length === 0 ? React.createElement('p', { className: 'text-center text-gray-500 mt-4' },
+                    searchActive ? '条件に合う記録がありません' : 'まだ記録がありません'
+                ) :
                     displayedHomeRecords.map(item => item.type === 'walk' ?
                         React.createElement('div', { key: 'w-' + item.id, className: 'border rounded-lg p-3 bg-white shadow-sm' },
                             React.createElement('div', { className: 'flex justify-between items-start mb-2' },
