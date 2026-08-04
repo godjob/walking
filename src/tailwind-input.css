@@ -1,0 +1,7 @@
+/* Tailwind の生成元。dist/tailwind.css をビルドするための入力ファイル。
+   クラスを追加・変更したら再生成すること。
+   コマンドは tests/verify-tailwind-css.js の冒頭コメントに記載。
+*/
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

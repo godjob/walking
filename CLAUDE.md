@@ -33,13 +33,37 @@ fuku-walk/
 │   ├── walk.js             散歩記録フォームコンポーネント
 │   ├── health.js           お世話記録コンポーネント
 │   ├── settings.js         設定画面コンポーネント・exportAllData
+│   ├── search.js           ホーム画面の記録検索ロジック（純粋関数）
+│   ├── tailwind-input.css  Tailwind生成元（dist/tailwind.css のソース）
 │   └── app.js              メインAppコンポーネント・ReactDOM.render()
+├── dist/
+│   └── tailwind.css        ビルド済みTailwind CSS（生成物・コミット対象）
+├── tests/
+│   ├── verify-tailwind-css.js       生成CSSの網羅性検証
+│   └── verify-perf-regression.js    初期表示高速化施策の退行検出
 ├── functions/
 │   └── index.js            Cloud Functions（LINE通知・自動/手動バックアップ）
+├── service-worker.js       PWAキャッシュ（shell / vendor の2層）
 ├── firebase.json           Firebase統合設定
 ├── firestore.rules         Firestoreセキュリティルール
 └── storage.rules           Storageセキュリティルール
 ```
+
+## Tailwind CSS の再生成（v2.16.0〜）
+
+Tailwind は `cdn.tailwindcss.com`（ブラウザ上でJITコンパイルするPlay CDN）から
+ビルド済みCSSに移行済み。**Tailwindのクラスを追加・変更したら必ず再生成すること。**
+再生成を忘れると、そのクラスだけスタイルが当たらない。
+
+```bash
+npx tailwindcss@3 -i src/tailwind-input.css -o dist/tailwind.css \
+  --content "./index.html,./src/**/*.js" --minify
+node tests/verify-tailwind-css.js     # 使用クラスがCSSに含まれるか検証
+node tests/verify-perf-regression.js  # 高速化施策の退行検出
+```
+
+`bg-${color}-500` のようにクラス名を分割して組み立てると抽出できず崩れるため、
+条件分岐は必ず完全なクラス名を三項演算子で切り替える形で書くこと。
 
 ## Firestoreコレクション
 
@@ -96,4 +120,4 @@ curl -X POST https://asia-northeast1-walking-36c5a.cloudfunctions.net/runBackupN
 - Y: 機能追加
 - X: 破壊的変更
 
-現在: v2.15.0
+現在: v2.16.0
