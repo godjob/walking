@@ -1,17 +1,31 @@
-const CACHE_NAME = 'fuku-cache-v2.15.0';
+// v2.16.0: キャッシュを2層に分離。
+// 旧実装は単一の CACHE_NAME に自サイトのファイルとCDNライブラリを同居させていたため、
+// バージョンアップで CACHE_NAME を上げるたびに activate が CDN 約800KB まで道連れに削除し、
+// 次回起動が毎回フルダウンロードに戻っていた（旧機種で初期表示が遅くなる主因のひとつ）。
+// CDNのURLはバージョンが埋め込まれており内容が変わらないため、アプリ更新では破棄しない。
+const SHELL_CACHE = 'fuku-shell-v2.16.0';  // 自サイトのファイル。バージョンごとに入れ替える
+const VENDOR_CACHE = 'fuku-vendor-v1';     // CDNライブラリ。アプリ更新をまたいで保持する
+
+const CURRENT_CACHES = [SHELL_CACHE, VENDOR_CACHE];
+
 const PRECACHE_URLS = [
     './',
     './index.html',
-    './manifest.json'
+    './manifest.json',
+    './dist/tailwind.css'
 ];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then((cache) => {
-                console.log('Opened cache');
-                return cache.addAll(PRECACHE_URLS);
-            })
+        caches.open(SHELL_CACHE)
+            .then((cache) => Promise.all(
+                // 旧実装の cache.addAll は atomic で、1件でも失敗すると install 全体が失敗し
+                // その端末では Service Worker が一度も有効化されなかった。
+                // 個別に add して失敗は握りつぶし、取得できたものだけ確実にキャッシュする。
+                PRECACHE_URLS.map((url) => cache.add(url).catch((err) => {
+                    console.warn('Precache skipped:', url, err);
+                }))
+            ))
             .then(() => self.skipWaiting())
     );
 });
@@ -21,7 +35,9 @@ self.addEventListener('activate', (event) => {
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
-                    if (cacheName !== CACHE_NAME) {
+                    // 現行の2つ以外を削除する。VENDOR_CACHE は残るため
+                    // バージョンアップ後もCDNライブラリは端末に保持される。
+                    if (!CURRENT_CACHES.includes(cacheName)) {
                         console.log('Deleting old cache:', cacheName);
                         return caches.delete(cacheName);
                     }
@@ -44,8 +60,8 @@ self.addEventListener('fetch', (event) => {
     }
 
     // 2. CDNライブラリとアプリ内リソースは Stale-While-Revalidate
+    //    （cdn.tailwindcss.com は v2.16.0 で dist/tailwind.css に置き換えたため対象外）
     const isCdn =
-        url.hostname === 'cdn.tailwindcss.com' ||
         url.hostname === 'unpkg.com' ||
         url.hostname === 'www.gstatic.com' ||
         url.hostname === 'maps.googleapis.com';
@@ -53,8 +69,10 @@ self.addEventListener('fetch', (event) => {
     const isLocal = event.request.url.startsWith(self.location.origin);
 
     if (isCdn || isLocal) {
+        const cacheName = isCdn ? VENDOR_CACHE : SHELL_CACHE;
+
         event.respondWith(
-            caches.open(CACHE_NAME).then((cache) => {
+            caches.open(cacheName).then((cache) => {
                 return cache.match(event.request).then((cachedResponse) => {
                     const fetchPromise = fetch(event.request)
                         .then((networkResponse) => {

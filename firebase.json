@@ -31,7 +31,8 @@
       "firestore.indexes.json",
       "README.md",
       "package.json",
-      "package-lock.json"
+      "package-lock.json",
+      "tests/**"
     ],
     "headers": [
       {
@@ -54,6 +55,15 @@
       },
       {
         "source": "/service-worker.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/dist/**",
         "headers": [
           {
             "key": "Cache-Control",
