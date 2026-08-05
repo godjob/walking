@@ -98,13 +98,19 @@ curl -X POST https://asia-northeast1-walking-36c5a.cloudfunctions.net/runBackupN
 1. **仕様確認**: 実装前に仕様案を提示し、承認を得てから実装する
 2. **機能チェック**: 既存機能（特にLINE通知・散歩記録・GPS）の退行がないか確認する
 3. **テスト**: 実装前テスト（FAIL確認）→ 実装 → 実装後テスト（PASS確認）の順で行う
+   フロントエンドを変更したら `node tests/verify-perf-regression.js` も実行する。
+   SW登録・Firestore永続化・Tailwind静的CSS等は**壊れても画面上は正常に見える**ため、
+   目視では退行に気づけない（v2.9.5ではSW登録コードの欠落が5バージョン発覚しなかった）
 4. **PR作成**: 機能追加・大きな変更は実装後にプルリクエストを作成して報告する。軽微な修正（1〜2行のバグ修正など）はmainへ直接pushして良い
 5. **バージョニング**: 変更に応じた次期バージョン（vX.Y.Z）を提案する
 
 ### 禁止事項
 - ビルドツール（Vite等）の導入（明示的な承認なしに）
 - Babel・JSXの導入
-- CDN読み込みのReact/Firebase/Tailwindをnpmパッケージに置き換えること
+- CDN読み込みのReact/Firebaseをnpmパッケージに置き換えること
+- **Tailwind を `cdn.tailwindcss.com`（Play CDN）に戻すこと**
+  v2.16.0で承認のうえビルド済みCSSへ移行済み。Play CDNはブラウザ上でJITコンパイルを行い、
+  旧機種の初期表示が大幅に遅くなる（この問題の根本原因だった）
 - 既存コードの削除・変更（追記のみ許可）
 - `--force` オプションを使った破壊的な操作
 
