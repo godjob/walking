@@ -2,6 +2,7 @@
 // SettingsScreen コンポーネント・exportAllData関数
 
 import { db } from './firebase-init.js';
+import { getTodayDateString } from './utils.js';
 
 function SettingsScreen({ settings, onSave, onReset }) {
     const { useState, useEffect } = React;
@@ -163,7 +164,8 @@ async function exportAllData() {
         const json = JSON.stringify(exportData, null, 2);
         const blob = new Blob([json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        const today = new Date().toISOString().slice(0, 10);
+        // toISOString() は UTC 変換なので JST 09:00 前だと前日の日付になる（v2.16.1 修正）
+        const today = getTodayDateString();
         const a = document.createElement('a');
         a.href = url;
         a.download = `fuku-walk-backup-${today}.json`;

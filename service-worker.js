@@ -3,7 +3,7 @@
 // バージョンアップで CACHE_NAME を上げるたびに activate が CDN 約800KB まで道連れに削除し、
 // 次回起動が毎回フルダウンロードに戻っていた（旧機種で初期表示が遅くなる主因のひとつ）。
 // CDNのURLはバージョンが埋め込まれており内容が変わらないため、アプリ更新では破棄しない。
-const SHELL_CACHE = 'fuku-shell-v2.16.0';  // 自サイトのファイル。バージョンごとに入れ替える
+const SHELL_CACHE = 'fuku-shell-v2.16.1';  // 自サイトのファイル。バージョンごとに入れ替える
 const VENDOR_CACHE = 'fuku-vendor-v1';     // CDNライブラリ。アプリ更新をまたいで保持する
 
 const CURRENT_CACHES = [SHELL_CACHE, VENDOR_CACHE];

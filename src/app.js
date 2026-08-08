@@ -9,6 +9,7 @@ import {
     getEnergyLabel,
     getWeatherEmoji,
     getTodayDateString,
+    toLocalISOString,
     compressImage,
     getWeekStart,
     getMonthStart,
@@ -399,7 +400,8 @@ function App() {
         const initialData = {
             id: record?.id || null,
             type: record?.type || type,
-            date: record ? new Date(record.date).toISOString().split('T')[0] : getTodayDateString(),
+            // toISOString() は UTC 変換なので JST 09:00 前の記録が1日前になる（v2.16.1 修正）
+            date: record ? toLocalISOString(record.date).split('T')[0] : getTodayDateString(),
             time: record ? new Date(record.date).toTimeString().slice(0, 5) : new Date().toTimeString().slice(0, 5),
             walker: record?.walker || '',
             hospitalName: record?.hospitalName || '',
