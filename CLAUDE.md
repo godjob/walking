@@ -40,7 +40,8 @@ fuku-walk/
 │   └── tailwind.css        ビルド済みTailwind CSS（生成物・コミット対象）
 ├── tests/
 │   ├── verify-tailwind-css.js       生成CSSの網羅性検証
-│   └── verify-perf-regression.js    初期表示高速化施策の退行検出
+│   ├── verify-perf-regression.js    初期表示高速化施策の退行検出
+│   └── verify-date-local.js         日付のローカルタイム処理の退行検出
 ├── functions/
 │   └── index.js            Cloud Functions（LINE通知・自動/手動バックアップ）
 ├── service-worker.js       PWAキャッシュ（shell / vendor の2層）
@@ -60,6 +61,7 @@ npx tailwindcss@3 -i src/tailwind-input.css -o dist/tailwind.css \
   --content "./index.html,./src/**/*.js" --minify
 node tests/verify-tailwind-css.js     # 使用クラスがCSSに含まれるか検証
 node tests/verify-perf-regression.js  # 高速化施策の退行検出
+node tests/verify-date-local.js       # 日付がUTCずれしていないか検証
 ```
 
 `bg-${color}-500` のようにクラス名を分割して組み立てると抽出できず崩れるため、
@@ -126,4 +128,4 @@ curl -X POST https://asia-northeast1-walking-36c5a.cloudfunctions.net/runBackupN
 - Y: 機能追加
 - X: 破壊的変更
 
-現在: v2.16.0
+現在: v2.16.1
