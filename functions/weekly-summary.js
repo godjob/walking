@@ -55,6 +55,10 @@ function isWeeklySummaryEnabled(settings) {
 const inRange = (rec, from, to) => rec.at >= from && rec.at < to;
 const byTime = (a, b) => a.at - b.at;
 const formatMonthDay = (date) => { const d = toJst(date); return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`; };
+const shortYear = (date) => String(toJst(date).getUTCFullYear()).slice(-2);
+// 26/9/14〜9/20。年をまたぐ週だけ終わりにも年を付ける（26/12/28〜27/1/3）
+const formatWeekLabel = (start, lastDay) => `${shortYear(start)}/${formatMonthDay(start)}〜`
+    + (shortYear(start) === shortYear(lastDay) ? '' : `${shortYear(lastDay)}/`) + formatMonthDay(lastDay);
 const formatEntryTime = (date) => {
     const d = toJst(date);
     const hh = String(d.getUTCHours()).padStart(2, '0');
@@ -203,7 +207,7 @@ function buildWeeklySummaryMessages({ walks, health, now }) {
 
     const lastDay = new Date(range.end.getTime() - DAY_MS);
     const sections = [
-        [`📊 福の週間サマリー（${formatMonthDay(range.start)}〜${formatMonthDay(lastDay)}）`],
+        [`📊 福のお世話　週間サマリー（${formatWeekLabel(range.start, lastDay)}）`],
         buildWalkLines(weekWalks, prevWalks).concat(buildConditionLine(weekWalks, weekHealth)),
         buildCareLines(weekHealth, beforeHealth),
         buildMissingLine(weekRecords, lookback)

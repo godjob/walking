@@ -1,7 +1,7 @@
 // @ts-nocheck
 // 定数・バッジ定義・デフォルト設定
 
-const APP_VERSION = 'v2.18.0';
+const APP_VERSION = 'v2.19.0';
 
 const DEFAULT_SETTINGS = {
     stopDetectionRadius: 10,

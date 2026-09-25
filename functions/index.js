@@ -131,7 +131,6 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
         const firmnessStr = (walk.poo && walk.pooFirmness) ? ` (${firmnessLabels[walk.pooFirmness] || '普通'})` : '';
 
         const pooStr = walk.poo ? `あり💩${firmnessStr}` : 'なし';
-        const peeStr = walk.pee ? 'あり💧' : 'なし';
         const energyLabels = { 1: '絶不調 😫', 2: '不調 😓', 3: '普通 😐', 4: '元気 🙂', 5: '絶好調 😆' };
         const energyStr = walk.energy ? `\n元気: ${energyLabels[walk.energy] || '普通'}` : '';
         const memoStr = walk.memo ? `\n\n📝 メモ:\n${walk.memo}` : '';
@@ -142,7 +141,7 @@ exports.onWalkCreated = functions.region('asia-northeast1').firestore
             `📍 距離: ${(walk.distance / 1000).toFixed(2)}km` +
             weatherStr +
             energyStr +
-            `\n\n🚽 トイレ:\nうんち: ${pooStr} / おしっこ: ${peeStr}` +
+            `\n\n🚽 トイレ:\nうんち: ${pooStr}` +
             memoStr;
 
         messages.push({ type: 'text', text: textContent });
