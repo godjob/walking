@@ -76,6 +76,7 @@ const runBehavior = async () => {
     check('振る舞い: type="button"（フォーム送信を誘発しない）', buttons.every((b) => b.props.type === 'button'));
     check('振る舞い: 選択中だけ aria-checked=true', buttons.map((b) => b.props['aria-checked']).join() === 'false,true,false,false');
     check('振る舞い: 複数選択は role=checkbox', buttons.every((b) => b.props.role === 'checkbox'));
+    check('振る舞い: 選択中もチェックマークを付けず名前だけ（色の変化のみで示す）', buttons[1].children.join('') === 'ママ');
     buttons[2].props.onClick();
     check('振る舞い: タップで onToggle に名前が渡る', toggled[0] === '長女');
 

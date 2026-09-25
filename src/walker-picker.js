@@ -20,7 +20,7 @@ function WalkerPicker({ walkers, selected, onToggle, single = false }) {
                 className: isSelected
                     ? 'flex-1 min-w-[4.5rem] min-h-[44px] px-2 rounded-lg border-2 font-bold text-sm bg-blue-100 border-blue-500 text-blue-700'
                     : 'flex-1 min-w-[4.5rem] min-h-[44px] px-2 rounded-lg border-2 font-bold text-sm bg-white border-gray-300 text-gray-700'
-            }, (isSelected ? '✓ ' : '') + w.name);
+            }, w.name);
         })
     );
 }
