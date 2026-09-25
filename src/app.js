@@ -643,7 +643,7 @@ function App() {
 
         const walk = {
             walkers: selectedWalkers, startTime: new Date(), positions: [],
-            pee: false, poo: false, pooFirmness: 3, energy: 3, water: false, memo: '', photos: [], weather: null
+            pee: false, poo: false, pooFirmness: 3, energy: 5, water: false, memo: '', photos: [], weather: null
         };
 
         setCurrentWalk(walk);
@@ -1085,8 +1085,7 @@ function App() {
                 ),
                 React.createElement('div', null,
                     React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '記録'),
-                    React.createElement('div', { className: 'grid grid-cols-3 gap-2' },
-                        React.createElement('button', { onClick: () => setCurrentWalk({ ...currentWalk, pee: !currentWalk.pee }), className: `py-3 rounded-lg border-2 font-bold ${currentWalk?.pee ? 'bg-yellow-100 border-yellow-500' : 'border-gray-300'}` }, '💧 おしっこ'),
+                    React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
                         React.createElement('button', { onClick: () => setCurrentWalk({ ...currentWalk, poo: !currentWalk.poo }), className: `py-3 rounded-lg border-2 font-bold ${currentWalk?.poo ? 'bg-amber-100 border-amber-500' : 'border-gray-300'}` }, '💩 うんち'),
                         React.createElement('button', { onClick: () => setCurrentWalk({ ...currentWalk, water: !currentWalk.water }), className: `py-3 rounded-lg border-2 font-bold ${currentWalk?.water ? 'bg-blue-100 border-blue-500' : 'border-gray-300'}` }, '💧 水')
                     ),

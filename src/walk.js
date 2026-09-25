@@ -140,12 +140,7 @@ function WalkEditForm({ walk, walkers, onSave, onCancel }) {
                     ),
                     React.createElement('div', null,
                         React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '記録'),
-                        React.createElement('div', { className: 'grid grid-cols-3 gap-2' },
-                            React.createElement('button', {
-                                onClick: () => setFormData({ ...formData, pee: !formData.pee }),
-                                type: 'button',
-                                className: `py-3 rounded-lg border-2 ${formData.pee ? 'bg-yellow-100 border-yellow-500' : 'border-gray-300'}`
-                            }, '💧 おしっこ'),
+                        React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
                             React.createElement('button', {
                                 onClick: () => setFormData({ ...formData, poo: !formData.poo }),
                                 type: 'button',

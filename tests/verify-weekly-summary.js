@@ -90,7 +90,7 @@ if (ws) {
     const msgs = buildWeeklySummaryMessages({ walks, health, now: j('2026-09-28T07:00') });
     const summary = msgs[0].text;
     const expectedSummary = [
-        '📊 福の週間サマリー（9/21〜9/27）',
+        '📊 福のお世話　週間サマリー（26/9/21〜9/27）',
         '',
         '🚶 散歩 3回 / 4.5km / 合計1時間30分',
         '   先週比 +1回 / +1.5km',
@@ -122,6 +122,10 @@ if (ws) {
     ].join('\n');
     eq('メモ: 時系列・病院の理由・複数行・空白のみのメモは除外', msgs[1] && msgs[1].text, expectedMemo);
     eq('メモがある週は2通', msgs.length, 2);
+
+    // 年をまたぐ週は終わりの日付にも年を付ける
+    const newYear = buildWeeklySummaryMessages({ walks: [], health: [], now: j('2027-01-04T07:00') });
+    eq('見出し: 年をまたぐ週は終わりにも年を付ける', newYear[0].text.split('\n')[0], '📊 福のお世話　週間サマリー（26/12/28〜27/1/3）');
 
     // 記録ゼロの週
     const empty = buildWeeklySummaryMessages({ walks: [], health: [], now: j('2026-09-28T07:00') });

@@ -44,7 +44,8 @@ fuku-walk/
 │   ├── verify-perf-regression.js    初期表示高速化施策の退行検出
 │   ├── verify-date-local.js         日付のローカルタイム処理の退行検出
 │   ├── verify-walker-picker.js      担当者選択UIの共通化・GPS受信診断表示の検証
-│   └── verify-weekly-summary.js     週間サマリーの集計・文面・配線の検証
+│   ├── verify-weekly-summary.js     週間サマリーの集計・文面・配線の検証
+│   └── verify-walk-record-options.js 散歩の記録項目（元気度初期値・おしっこ非表示）の検証
 ├── functions/
 │   ├── index.js            Cloud Functions（LINE通知・自動/手動バックアップ・週間サマリー）
 │   └── weekly-summary.js   週間サマリーの集計・文面作成（純粋関数）
@@ -68,6 +69,7 @@ node tests/verify-perf-regression.js  # 高速化施策の退行検出
 node tests/verify-date-local.js       # 日付がUTCずれしていないか検証
 node tests/verify-walker-picker.js    # 担当者選択UI・GPS受信診断表示の検証
 node tests/verify-weekly-summary.js   # 週間サマリーの集計・文面・配線の検証
+node tests/verify-walk-record-options.js # 散歩の記録項目の検証
 ```
 
 `bg-${color}-500` のようにクラス名を分割して組み立てると抽出できず崩れるため、
@@ -142,4 +144,4 @@ curl -X POST https://asia-northeast1-walking-36c5a.cloudfunctions.net/runBackupN
 - Y: 機能追加
 - X: 破壊的変更
 
-現在: v2.18.0
+現在: v2.19.0
