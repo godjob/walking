@@ -3,6 +3,7 @@
 
 import { storage } from './firebase-init.js';
 import { toLocalISOString, compressImage, getEnergyLabel, useModalScrollLock } from './utils.js';
+import { WalkerPicker } from './walker-picker.js';
 
 function WalkEditForm({ walk, walkers, onSave, onCancel }) {
     const { useState } = React;
@@ -106,17 +107,7 @@ function WalkEditForm({ walk, walkers, onSave, onCancel }) {
                     ),
                     React.createElement('div', null,
                         React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '散歩者'),
-                        React.createElement('div', { className: 'space-y-2' },
-                            walkers.map(w => React.createElement('label', {
-                                key: w.id, className: 'flex items-center p-2 border rounded cursor-pointer hover:bg-gray-50'
-                            },
-                                React.createElement('input', {
-                                    type: 'checkbox', checked: formData.walkers.includes(w.name),
-                                    onChange: () => toggleWalker(w.name), className: 'mr-2 w-5 h-5'
-                                }),
-                                React.createElement('span', null, w.name)
-                            ))
-                        )
+                        React.createElement(WalkerPicker, { walkers, selected: formData.walkers, onToggle: toggleWalker })
                     ),
                     React.createElement('div', null,
                         React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '歩行距離'),

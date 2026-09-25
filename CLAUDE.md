@@ -32,6 +32,7 @@ fuku-walk/
 │   ├── map.js              地図・写真表示コンポーネント
 │   ├── walk.js             散歩記録フォームコンポーネント
 │   ├── health.js           お世話記録コンポーネント
+│   ├── walker-picker.js    担当者選択UI（散歩・お世話で共通。散歩は複数／お世話は1人）
 │   ├── settings.js         設定画面コンポーネント・exportAllData
 │   ├── search.js           ホーム画面の記録検索ロジック（純粋関数）
 │   ├── tailwind-input.css  Tailwind生成元（dist/tailwind.css のソース）
@@ -41,7 +42,8 @@ fuku-walk/
 ├── tests/
 │   ├── verify-tailwind-css.js       生成CSSの網羅性検証
 │   ├── verify-perf-regression.js    初期表示高速化施策の退行検出
-│   └── verify-date-local.js         日付のローカルタイム処理の退行検出
+│   ├── verify-date-local.js         日付のローカルタイム処理の退行検出
+│   └── verify-walker-picker.js      担当者選択UIの共通化・GPS受信診断表示の検証
 ├── functions/
 │   └── index.js            Cloud Functions（LINE通知・自動/手動バックアップ）
 ├── service-worker.js       PWAキャッシュ（shell / vendor の2層）
@@ -62,6 +64,7 @@ npx tailwindcss@3 -i src/tailwind-input.css -o dist/tailwind.css \
 node tests/verify-tailwind-css.js     # 使用クラスがCSSに含まれるか検証
 node tests/verify-perf-regression.js  # 高速化施策の退行検出
 node tests/verify-date-local.js       # 日付がUTCずれしていないか検証
+node tests/verify-walker-picker.js    # 担当者選択UI・GPS受信診断表示の検証
 ```
 
 `bg-${color}-500` のようにクラス名を分割して組み立てると抽出できず崩れるため、
@@ -128,4 +131,4 @@ curl -X POST https://asia-northeast1-walking-36c5a.cloudfunctions.net/runBackupN
 - Y: 機能追加
 - X: 破壊的変更
 
-現在: v2.16.1
+現在: v2.17.0
