@@ -20,6 +20,7 @@ import {
 } from './utils.js';
 import { PhotoViewer, MapView } from './map.js';
 import { WalkEditForm } from './walk.js';
+import { WalkerPicker } from './walker-picker.js';
 import { CareHistoryChart, HealthForm } from './health.js';
 import { SettingsScreen } from './settings.js';
 import {
@@ -59,6 +60,9 @@ function App() {
     const lastGpsUpdateRef = useRef(0);
     const lastActivePositionRef = useRef(null);
     const [lastPositionTime, setLastPositionTime] = useState(Date.now());
+    // 停止判定用の lastPositionTime は「動いたとき」しか更新されないため、受信の有無は別に持つ
+    // （散歩中にGPS受信が途切れていないかを画面で確認するための診断表示用）
+    const [lastGpsReceivedAt, setLastGpsReceivedAt] = useState(null);
     const [showWalkWarning, setShowWalkWarning] = useState(false);
     useModalScrollLock(showWalkWarning);
 
@@ -549,6 +553,7 @@ function App() {
     const handlePositionSuccess = async (position) => {
         const { latitude, longitude, accuracy } = position.coords;
         const timestamp = position.timestamp;
+        setLastGpsReceivedAt(Date.now());
 
         // GPS更新間隔の制御
         if (timestamp - lastGpsUpdateRef.current < settings.gpsUpdateInterval * 1000) {
@@ -646,6 +651,7 @@ function App() {
         setPhotos([]);
         setNow(new Date());
         setLastPositionTime(Date.now());
+        setLastGpsReceivedAt(null);
         lastActivePositionRef.current = null;
 
         const options = {
@@ -1132,18 +1138,15 @@ function App() {
                         React.createElement('div', null, `🛑 停止判定: ${settings.stopDetectionRadius}m / ${settings.stopDetectionDuration}秒`),
                         React.createElement('div', null, `🏁 自動終了: ${settings.autoEndEnabled ? Math.floor(settings.autoEndAfterStop / 60) + '分後' : 'オフ'}`),
                         React.createElement('div', null, `📍 GPS更新: ${settings.gpsUpdateInterval}秒`),
-                        React.createElement('div', null, `📏 最小記録: ${settings.minimumDistanceThreshold}m`)
+                        React.createElement('div', null, `📏 最小記録: ${settings.minimumDistanceThreshold}m`),
+                        React.createElement('div', null, `📡 最終GPS受信: ${lastGpsReceivedAt === null ? '待機中' : Math.max(0, Math.round((now.getTime() - lastGpsReceivedAt) / 1000)) + '秒前'}`)
                     )
                 )
             ) : showWalkSetup ? React.createElement('div', { className: 'space-y-4' },
                 React.createElement('h3', { className: 'font-bold text-lg' }, '🚶 散歩の準備'),
                 React.createElement('div', null,
                     React.createElement('label', { className: 'block text-sm font-medium mb-2' }, '散歩者を選択'),
-                    React.createElement('div', { className: 'space-y-2' },
-                        walkers.map(w => React.createElement('label', { key: w.id, className: 'flex items-center p-2 border rounded cursor-pointer hover:bg-gray-50' },
-                            React.createElement('input', { type: 'checkbox', checked: selectedWalkers.includes(w.name), onChange: () => toggleWalker(w.name), className: 'mr-2 w-5 h-5' }), React.createElement('span', null, w.name)
-                        ))
-                    ),
+                    React.createElement(WalkerPicker, { walkers, selected: selectedWalkers, onToggle: toggleWalker }),
                     selectedWalkers.length > 0 && React.createElement('p', { className: 'text-sm text-gray-600 mt-2' }, '選択中: ' + selectedWalkers.join(', '))
                 ),
 

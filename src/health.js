@@ -3,6 +3,7 @@
 
 import { storage } from './firebase-init.js';
 import { compressImage, getFirmnessLabel, getFoodAmountLabel, useModalScrollLock } from './utils.js';
+import { WalkerPicker } from './walker-picker.js';
 
 function CareHistoryChart({ walks, healthRecords }) {
     const { useRef, useEffect } = React;
@@ -133,13 +134,11 @@ function HealthForm({ type, walkers, formData, onChange, onSave, onCancel }) {
         ),
         React.createElement('div', null,
             React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '担当者'),
-            React.createElement('select', {
-                value: formData.walker, onChange: (e) => onChange({ ...formData, walker: e.target.value }),
-                className: 'w-full p-2 border rounded'
-            },
-                React.createElement('option', { value: '' }, '担当者を選択'),
-                walkers.map(w => React.createElement('option', { key: w.id, value: w.name }, w.name))
-            )
+            React.createElement(WalkerPicker, {
+                walkers, single: true,
+                selected: formData.walker ? [formData.walker] : [],
+                onToggle: (name) => onChange({ ...formData, walker: formData.walker === name ? '' : name })
+            })
         ),
         React.createElement('div', null,
             React.createElement('label', { className: 'block text-sm font-medium mb-1' }, '日付'),
