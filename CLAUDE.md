@@ -43,9 +43,11 @@ fuku-walk/
 │   ├── verify-tailwind-css.js       生成CSSの網羅性検証
 │   ├── verify-perf-regression.js    初期表示高速化施策の退行検出
 │   ├── verify-date-local.js         日付のローカルタイム処理の退行検出
-│   └── verify-walker-picker.js      担当者選択UIの共通化・GPS受信診断表示の検証
+│   ├── verify-walker-picker.js      担当者選択UIの共通化・GPS受信診断表示の検証
+│   └── verify-weekly-summary.js     週間サマリーの集計・文面・配線の検証
 ├── functions/
-│   └── index.js            Cloud Functions（LINE通知・自動/手動バックアップ）
+│   ├── index.js            Cloud Functions（LINE通知・自動/手動バックアップ・週間サマリー）
+│   └── weekly-summary.js   週間サマリーの集計・文面作成（純粋関数）
 ├── service-worker.js       PWAキャッシュ（shell / vendor の2層）
 ├── firebase.json           Firebase統合設定
 ├── firestore.rules         Firestoreセキュリティルール
@@ -65,6 +67,7 @@ node tests/verify-tailwind-css.js     # 使用クラスがCSSに含まれるか�
 node tests/verify-perf-regression.js  # 高速化施策の退行検出
 node tests/verify-date-local.js       # 日付がUTCずれしていないか検証
 node tests/verify-walker-picker.js    # 担当者選択UI・GPS受信診断表示の検証
+node tests/verify-weekly-summary.js   # 週間サマリーの集計・文面・配線の検証
 ```
 
 `bg-${color}-500` のようにクラス名を分割して組み立てると抽出できず崩れるため、
@@ -87,6 +90,14 @@ firebase deploy                    # 全体
 firebase deploy --only hosting     # フロントエンドのみ
 firebase deploy --only functions   # バックエンドのみ
 ```
+
+## 週間サマリー（v2.18.0〜）
+
+- `weeklySummary`: 毎週月曜 7:00 JST に先週（月〜日）の集計と全メモ（病院の理由を含む）を家族へLINE送信
+- 設定 `settings/walk.weeklySummaryEnabled`（未保存・項目なしはON）。設定画面の「👀 プレビュー」はLINEを送らない
+- `sendWeeklySummaryNow` は10分に1回まで（`settings/weeklySummaryManualSend.sentAt` で判定）。
+  フロントエンドに認証が無く onCall は誰でも呼べるため、連投を防ぐ目的
+- LINEテキストは1通5000文字・1回5通まで。メモは2通目以降に詰め、溢れた分は「…ほかN件」
 
 ## バックアップ
 
@@ -131,4 +142,4 @@ curl -X POST https://asia-northeast1-walking-36c5a.cloudfunctions.net/runBackupN
 - Y: 機能追加
 - X: 破壊的変更
 
-現在: v2.17.1
+現在: v2.18.0

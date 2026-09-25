@@ -1,7 +1,7 @@
 // @ts-nocheck
 // 定数・バッジ定義・デフォルト設定
 
-const APP_VERSION = 'v2.17.1';
+const APP_VERSION = 'v2.18.0';
 
 const DEFAULT_SETTINGS = {
     stopDetectionRadius: 10,
@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS = {
     autoEndAfterStop: 600,
     gpsUpdateInterval: 5,
     minimumDistanceThreshold: 5,
+    weeklySummaryEnabled: true,
 };
 
 const badges = [

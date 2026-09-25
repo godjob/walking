@@ -389,3 +389,83 @@ exports.notifyHealthRecord = functions.region('asia-northeast1').https.onCall(as
         throw new functions.https.HttpsError('internal', 'LINE通知の送信に失敗しました。', error.message);
     }
 });
+
+// ============================================================
+// 週間サマリー（v2.18.0）
+// 毎週月曜 7:00 JST に先週（月〜日）の散歩・お世話・メモをまとめて家族へLINE通知する。
+// 集計と文面作成は weekly-summary.js（純粋関数・tests/verify-weekly-summary.js で検証）。
+// ============================================================
+const weeklySummaryLib = require('./weekly-summary');
+
+// 今すぐ送信の最短間隔。フロントエンドに認証が無く onCall は誰でも呼べるため、連投を防ぐ
+const MANUAL_SEND_INTERVAL_MS = 10 * 60 * 1000;
+
+async function isWeeklySummaryEnabled() {
+    const doc = await db.collection('settings').doc('walk').get();
+    return weeklySummaryLib.isWeeklySummaryEnabled(doc.exists ? doc.data() : undefined);
+}
+
+// 対象週と「記録なし」判定用の直近4週間分を読み込み、LINEの吹き出しを作る
+async function loadWeeklySummaryMessages(now) {
+    const range = weeklySummaryLib.getWeekRange(now);
+    const [walksSnap, healthSnap] = await Promise.all([
+        db.collection('walks').where('startTime', '>=', range.lookbackStart).where('startTime', '<', range.end).get(),
+        db.collection('health').where('date', '>=', range.lookbackStart).where('date', '<', range.end).get()
+    ]);
+    const withAt = (field) => (doc) => {
+        const data = doc.data();
+        return { ...data, at: data[field].toDate() };
+    };
+    return weeklySummaryLib.buildWeeklySummaryMessages({
+        walks: walksSnap.docs.map(withAt('startTime')),
+        health: healthSnap.docs.map(withAt('date')),
+        now
+    });
+}
+
+exports.weeklySummary = functions.region('asia-northeast1').pubsub
+    .schedule('0 7 * * 1').timeZone('Asia/Tokyo') // 毎週月曜 7:00 JST
+    .onRun(async (context) => {
+        if (!(await isWeeklySummaryEnabled())) {
+            console.log('週間サマリーは設定でOFFのため送信しません。');
+            return null;
+        }
+        const messages = await loadWeeklySummaryMessages(new Date());
+        await broadcastToFamily(messages);
+        console.log(`週間サマリーを送信しました（${messages.length}通）`);
+        return null;
+    });
+
+// LINEは送らず文面だけ返す（設定画面のプレビュー用）
+exports.previewWeeklySummary = functions.region('asia-northeast1').https.onCall(async (data, context) => {
+    try {
+        const messages = await loadWeeklySummaryMessages(new Date());
+        return { texts: messages.map(m => m.text) };
+    } catch (error) {
+        console.error('previewWeeklySummaryエラー:', error);
+        throw new functions.https.HttpsError('internal', '週間サマリーの作成に失敗しました。', error.message);
+    }
+});
+
+// 設定画面の「今すぐ送信」。前回の手動送信から10分以内は拒否する
+exports.sendWeeklySummaryNow = functions.region('asia-northeast1').https.onCall(async (data, context) => {
+    const guardRef = db.collection('settings').doc('weeklySummaryManualSend');
+    const allowed = await db.runTransaction(async (tx) => {
+        const snap = await tx.get(guardRef);
+        const last = snap.exists && snap.data().sentAt ? snap.data().sentAt.toMillis() : 0;
+        if (Date.now() - last < MANUAL_SEND_INTERVAL_MS) return false;
+        tx.set(guardRef, { sentAt: admin.firestore.FieldValue.serverTimestamp() });
+        return true;
+    });
+    if (!allowed) {
+        throw new functions.https.HttpsError('resource-exhausted', '今すぐ送信は10分に1回までです。しばらく待ってから再度お試しください。');
+    }
+    try {
+        const messages = await loadWeeklySummaryMessages(new Date());
+        await broadcastToFamily(messages);
+        return { sent: messages.length };
+    } catch (error) {
+        console.error('sendWeeklySummaryNowエラー:', error);
+        throw new functions.https.HttpsError('internal', 'LINE通知の送信に失敗しました。', error.message);
+    }
+});
