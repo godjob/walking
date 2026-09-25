@@ -91,6 +91,7 @@ function App() {
                 autoEndAfterStop: parseInt(newSettings.autoEndAfterStop, 10),
                 gpsUpdateInterval: parseInt(newSettings.gpsUpdateInterval, 10),
                 minimumDistanceThreshold: parseInt(newSettings.minimumDistanceThreshold, 10),
+                weeklySummaryEnabled: newSettings.weeklySummaryEnabled !== false,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 updatedBy: 'user'
             };

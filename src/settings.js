@@ -1,7 +1,7 @@
 // @ts-nocheck
 // SettingsScreen コンポーネント・exportAllData関数
 
-import { db } from './firebase-init.js';
+import { db, functions } from './firebase-init.js';
 import { getTodayDateString } from './utils.js';
 
 function SettingsScreen({ settings, onSave, onReset }) {
@@ -19,6 +19,31 @@ function SettingsScreen({ settings, onSave, onReset }) {
 
     const handleSave = () => {
         onSave(localSettings);
+    };
+
+    // 週間サマリー（v2.18.0）: プレビューはLINEを送らず文面だけ表示する
+    const [summaryPreview, setSummaryPreview] = useState(null);
+    const [summaryBusy, setSummaryBusy] = useState('');
+
+    const previewWeeklySummary = async () => {
+        setSummaryBusy('preview');
+        try {
+            const res = await functions.httpsCallable('previewWeeklySummary')();
+            setSummaryPreview(res.data.texts);
+        } catch (e) {
+            alert('プレビューの作成に失敗しました: ' + e.message);
+        } finally { setSummaryBusy(''); }
+    };
+
+    const sendWeeklySummaryNow = async () => {
+        if (!confirm('先週分の週間サマリーを家族全員にLINEで送信しますか？')) return;
+        setSummaryBusy('send');
+        try {
+            const res = await functions.httpsCallable('sendWeeklySummaryNow')();
+            alert(`送信しました（${res.data.sent}通）`);
+        } catch (e) {
+            alert('送信に失敗しました: ' + e.message);
+        } finally { setSummaryBusy(''); }
     };
 
     return React.createElement('div', { className: 'pb-20' },
@@ -101,6 +126,43 @@ function SettingsScreen({ settings, onSave, onReset }) {
                     className: 'w-full mb-1'
                 }),
                 React.createElement('p', { className: 'text-xs text-gray-500' }, '推奨: 5m (初期設定)')
+            )
+        ),
+
+        // Section 4: Weekly Summary
+        React.createElement('div', { className: 'bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6' },
+            React.createElement('h3', { className: 'font-bold text-lg mb-3 text-gray-800 flex items-center' }, React.createElement('span', { className: 'mr-2' }, '📊'), '週間サマリー'),
+
+            React.createElement('div', { className: 'flex items-center justify-between mb-1' },
+                React.createElement('span', { className: 'text-sm font-medium' }, '週間サマリーをLINEで通知'),
+                React.createElement('div', {
+                    className: `w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${localSettings.weeklySummaryEnabled !== false ? 'bg-green-500' : 'bg-gray-300'}`,
+                    onClick: () => handleChange('weeklySummaryEnabled', localSettings.weeklySummaryEnabled === false)
+                },
+                    React.createElement('div', { className: `bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${localSettings.weeklySummaryEnabled !== false ? 'translate-x-6' : ''}` })
+                )
+            ),
+            React.createElement('p', { className: 'text-xs text-gray-500 mb-4' }, '毎週月曜 7:00 に先週（月〜日）の記録とメモを送信。切り替え後は「保存」を押してください'),
+
+            React.createElement('div', { className: 'flex gap-2' },
+                React.createElement('button', {
+                    type: 'button', onClick: previewWeeklySummary, disabled: !!summaryBusy,
+                    className: 'flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded-lg border border-gray-300 disabled:opacity-50'
+                }, summaryBusy === 'preview' ? '作成中...' : '👀 プレビュー'),
+                React.createElement('button', {
+                    type: 'button', onClick: sendWeeklySummaryNow, disabled: !!summaryBusy,
+                    className: 'flex-1 bg-green-600 text-white font-bold py-2 rounded-lg disabled:opacity-50'
+                }, summaryBusy === 'send' ? '送信中...' : '📤 今すぐ送信')
+            ),
+
+            summaryPreview && React.createElement('div', { className: 'mt-3 space-y-2' },
+                summaryPreview.map((text, i) => React.createElement('div', {
+                    key: i, className: 'whitespace-pre-wrap text-xs bg-green-50 p-3 rounded-lg border border-green-200'
+                }, text)),
+                React.createElement('button', {
+                    type: 'button', onClick: () => setSummaryPreview(null),
+                    className: 'w-full text-xs text-gray-500 py-1'
+                }, 'プレビューを閉じる')
             )
         ),
 
